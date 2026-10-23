@@ -2,8 +2,8 @@
 
 /**
  * @company Bigbitbyte
- * @authors Ivan Hernández Hinojosa, Jorge Darien Cabrera Bastidas, Carlos González Laines
- * @created 2026
+ * @authors Ivan Hernández Hinojosa.
+ * @created 20/octubre/2026
  * @description Entrega las vistas del dashboard y detalle de eventos.
  */
 
