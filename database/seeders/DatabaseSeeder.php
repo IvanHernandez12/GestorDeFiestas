@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * @company Bigbitbyte
+ * @authors Ivan Hernández Hinojosa, Jorge Darien Cabrera Bastidas, Carlos González Laines
+ * @created 2026
+ * @description Coordina los datos de demostración del sistema.
+ */
+
 namespace Database\Seeders;
 
 use App\Models\User;
@@ -12,10 +19,12 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     *
+     * @return void
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->call(EventoSeeder::class);
 
         User::factory()->create([
             'name' => 'Test User',

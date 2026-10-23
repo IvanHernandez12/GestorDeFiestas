@@ -7,6 +7,30 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Módulo de eventos
+
+El dashboard carga los eventos desde la API REST. El detalle muestra resumen, invitados, croquis del salón, QR, seguimiento de proveedores, álbum e información del evento.
+
+Para cargar el evento de referencia `EVT-045476` en una base de datos local:
+
+```bash
+php artisan migrate --seed
+```
+
+Para compilar y servir los recursos del frontend:
+
+```bash
+npm install
+npm run dev
+```
+
+Endpoints principales:
+
+- `GET|POST /api/eventos`
+- `GET|PUT|PATCH|DELETE /api/eventos/{evento}`
+- `GET|POST /api/eventos/{evento}/invitados`
+- `GET|PUT|PATCH|DELETE /api/eventos/{evento}/invitados/{invitado}`
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
