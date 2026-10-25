@@ -17,6 +17,13 @@
     <main class="page-shell">
         @yield('content')
     </main>
-    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true">
+        @if(session('status'))
+            <div class="toast" role="status">
+                {{ session('status') }}
+                <button type="button" class="toast__close" aria-label="Cerrar notificación" onclick="this.parentElement.remove()">×</button>
+            </div>
+        @endif
+    </div>
 </body>
 </html>

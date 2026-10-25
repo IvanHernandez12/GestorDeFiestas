@@ -35,5 +35,20 @@ class EventoSeeder extends Seeder
                 'prioridad_invitados' => ['Familia', 'Amigos', 'Trabajo', 'General'],
             ],
         );
+
+        Evento::query()->firstOrCreate(
+            ['folio' => 'EVT-082914'],
+            [
+                'nombre' => 'XV Años de Valeria',
+                'tipo' => 'XV Años',
+                'estado' => 'Planificando',
+                'fecha_evento' => '2026-11-15',
+                'ubicacion' => 'Centro de Convenciones, Toluca',
+                'numero_invitados' => 120,
+                'presupuesto' => 85000,
+                'reglamento' => 'Acceso con invitación QR',
+                'prioridad_invitados' => ['Familia', 'Amigos', 'Trabajo', 'General'],
+            ],
+        );
     }
 }
