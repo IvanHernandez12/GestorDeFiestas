@@ -5,6 +5,7 @@
 .env.production
 .phpactor.json
 .phpunit.result.cache
+/.agents/
 /.codex
 /.cursor/
 /.idea
@@ -25,3 +26,12 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Scripts de transformación y utilidades (Conversión MD a PDF, ERD y utilitarios)
+/scripts/
+scripts/md_to_pdf.mjs
+*_temp_*.*
+
+# Entregas locales de sprint para auditoría
+/entregas de sprint/
+

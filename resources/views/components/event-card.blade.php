@@ -1,16 +1,19 @@
+@props(['evento' => null])
+
 <article class="event-card">
     <div class="event-card__labels">
-        <span class="badge badge--type" data-event-type></span>
-        <span class="badge badge--state" data-event-state></span>
+        <span class="badge badge--type" data-event-type>{{ $evento?->tipo }}</span>
+        <span class="badge badge--state" data-event-state>{{ $evento?->estado }}</span>
     </div>
-    <h2 class="event-card__title" data-event-name></h2>
+    <h2 class="event-card__title" data-event-name>{{ $evento?->nombre }}</h2>
     <div class="event-card__facts">
-        <p><span aria-hidden="true">▣</span><span data-event-date></span></p>
-        <p><span aria-hidden="true">⌖</span><span data-event-location></span></p>
-        <p><span aria-hidden="true">♧</span><span data-event-guests></span> invitados</p>
+        <p><span aria-hidden="true">▣</span><span data-event-date>{{ $evento ? $evento->fecha_evento?->format('d/m/Y') : '' }}</span></p>
+        <p><span aria-hidden="true">⌖</span><span data-event-location>{{ $evento?->ubicacion }}</span></p>
+        <p><span aria-hidden="true">♧</span><span data-event-guests>{{ $evento?->numero_invitados ?? 0 }}</span> invitados</p>
+        <p data-event-budget-row><span aria-hidden="true">$</span><span data-event-budget>{{ $evento ? '$' . number_format($evento->presupuesto, 0) : '' }}</span></p>
     </div>
     <footer class="event-card__footer">
-        <span class="muted" data-event-folio></span>
-        <a class="text-link" data-event-detail>Ver detalle <span aria-hidden="true">›</span></a>
+        <span class="muted" data-event-folio>{{ $evento ? 'Folio ' . $evento->folio : '' }}</span>
+        <a class="text-link" data-event-detail href="{{ $evento ? route('eventos.detalle', $evento) : '#' }}">Ver detalle <span aria-hidden="true">›</span></a>
     </footer>
 </article>

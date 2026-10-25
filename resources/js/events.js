@@ -70,11 +70,23 @@ export function showToast(message) {
 export async function loadEventDashboard(root) {
     const container = root.querySelector('[data-events-container]');
     const countLabel = root.querySelector('[data-event-count]');
+    const activeEventsStat = document.querySelector('#stat-active-events');
+    const totalGuestsStat = document.querySelector('#stat-total-guests');
 
     try {
         const response = await requestJson(root.dataset.apiUrl);
         const eventos = response.data ?? response;
-        countLabel.textContent = `${eventos.length} ${eventos.length === 1 ? 'evento' : 'eventos'}`;
+        if (countLabel) {
+            countLabel.textContent = `${eventos.length} ${eventos.length === 1 ? 'evento' : 'eventos'}`;
+        }
+        if (activeEventsStat) {
+            activeEventsStat.textContent = `${eventos.length} eventos`;
+        }
+        if (totalGuestsStat) {
+            const totalGuests = eventos.reduce((sum, e) => sum + (parseInt(e.numero_invitados, 10) || 0), 0);
+            totalGuestsStat.textContent = `${totalGuests} comensales`;
+        }
+
         container.replaceChildren();
 
         if (!eventos.length) {
@@ -84,8 +96,10 @@ export async function loadEventDashboard(root) {
 
         eventos.forEach((evento) => container.append(createEventCard(evento)));
     } catch (error) {
-        container.innerHTML = '<p class="error-state">No se pudieron cargar los eventos. Verifica que la base de datos esté migrada y tenga datos.</p>';
-        showToast(error.message);
+        // Si hay tarjetas pre-renderizadas por el servidor, consérvalas
+        if (container.querySelectorAll('.event-card').length === 0) {
+            container.innerHTML = '<p class="error-state">No se pudieron cargar los eventos del servidor.</p>';
+        }
     }
 }
 
@@ -103,11 +117,147 @@ function createEventCard(evento) {
     card.querySelector('[data-event-name]').textContent = evento.nombre;
     card.querySelector('[data-event-date]').textContent = formatLongDate(evento.fecha_evento);
     card.querySelector('[data-event-location]').textContent = evento.ubicacion;
-    card.querySelector('[data-event-guests]').textContent = evento.numero_invitados;
+    card.querySelector('[data-event-guests]').textContent = evento.numero_invitados ?? 0;
+    
+    const budgetElem = card.querySelector('[data-event-budget]');
+    if (budgetElem) {
+        budgetElem.textContent = evento.presupuesto ? formatCurrency(evento.presupuesto) : '$0';
+    }
+
     card.querySelector('[data-event-folio]').textContent = `Folio ${evento.folio}`;
     card.querySelector('[data-event-detail]').href = `/eventos/${evento.id}`;
 
     return card;
+}
+
+/**
+ * Prepara el modal interactivo de creación de eventos y su envío REST.
+ *
+ * @param {HTMLElement} root
+ * @returns {void}
+ */
+export function initializeEventModal(root) {
+    const modal = document.querySelector('[data-event-modal]');
+    const form = modal?.querySelector('[data-event-create-form]');
+    const folioInput = modal?.querySelector('#input-modal-folio');
+    const folioDisplay = modal?.querySelector('#display-modal-folio');
+    const regenButton = modal?.querySelector('#btn-regenerar-folio');
+    const errorBox = modal?.querySelector('[data-event-form-error]');
+
+    if (!modal || !form) {
+        return;
+    }
+
+    function generateFolio() {
+        const randomNum = Math.floor(100000 + Math.random() * 900000);
+        const folio = `EVT-${randomNum}`;
+        if (folioInput) {
+            folioInput.value = folio;
+        }
+        if (folioDisplay) {
+            folioDisplay.textContent = folio;
+        }
+    }
+
+    function openModal() {
+        generateFolio();
+        if (errorBox) {
+            errorBox.setAttribute('hidden', '');
+            errorBox.textContent = '';
+        }
+        modal.removeAttribute('hidden');
+        modal.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+        const nameField = form.querySelector('input[name="nombre"]');
+        setTimeout(() => nameField?.focus(), 50);
+    }
+
+    function closeModal() {
+        modal.setAttribute('hidden', '');
+        modal.classList.remove('is-open');
+        document.body.style.overflow = '';
+        form.reset();
+    }
+
+    document.querySelectorAll('[data-open-event-modal]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            openModal();
+        });
+    });
+
+    document.querySelectorAll('[data-close-event-modal]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            closeModal();
+        });
+    });
+
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+
+    window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !modal.hidden) {
+            closeModal();
+        }
+    });
+
+    regenButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        generateFolio();
+    });
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (errorBox) {
+            errorBox.hidden = true;
+            errorBox.textContent = '';
+        }
+
+        const formData = new FormData(form);
+        const datos = Object.fromEntries(formData.entries());
+
+        if (datos.numero_invitados) {
+            datos.numero_invitados = parseInt(datos.numero_invitados, 10);
+        }
+        if (datos.presupuesto) {
+            datos.presupuesto = parseFloat(datos.presupuesto);
+        }
+
+        const apiUrl = root.dataset.apiUrl || '/api/eventos';
+        const submitBtn = form.querySelector('#btn-confirmar-creacion');
+
+        try {
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span aria-hidden="true">⏳</span> Registrando…';
+            }
+
+            await requestJson(apiUrl, {
+                method: 'POST',
+                body: JSON.stringify(datos),
+            });
+
+            closeModal();
+            showToast(`¡Evento "${datos.nombre}" iniciado exitosamente!`);
+            await loadEventDashboard(root);
+        } catch (error) {
+            if (errorBox) {
+                errorBox.textContent = error.message;
+                errorBox.hidden = false;
+            } else {
+                showToast(error.message);
+            }
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span aria-hidden="true">＋</span> Guardar y comenzar evento';
+            }
+        }
+    });
 }
 
 /**

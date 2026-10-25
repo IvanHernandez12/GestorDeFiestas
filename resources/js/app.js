@@ -1,11 +1,11 @@
-import { loadEventDashboard, loadEventDetail, showToast } from './events.js';
+import { initializeEventModal, loadEventDashboard, loadEventDetail, showToast } from './events.js';
 import { initializeVenueEditor } from './venue-editor.js';
 
 /**
  * @company Bigbitbyte
  * @author Ivan Hernández Hinojosa
  * @created 20/octubre/2026
- * @description 
+ * @description Inicializa los componentes de la interfaz de eventos y modales.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (eventList) {
         loadEventDashboard(eventList);
+        initializeEventModal(eventList);
     }
 
     if (eventDetail) {
