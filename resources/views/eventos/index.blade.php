@@ -72,6 +72,32 @@
     </template>
 </section>
 
+<!-- Modal de confirmación tras crear evento -->
+<div class="modal-backdrop" id="modal-confirmacion-backdrop" hidden>
+    <div class="modal-dialog panel-card" role="dialog" aria-modal="true" aria-labelledby="modal-confirmacion-titulo" style="max-width:520px;">
+        <header class="modal-header">
+            <div>
+                <span class="hero-kicker modal-kicker" style="color:#15803d;border-color:#bbf7d0;background:#f0fdf4;">
+                    <span aria-hidden="true">✓</span> Evento registrado
+                </span>
+                <h2 id="modal-confirmacion-titulo" style="margin-top:8px;">¡Evento iniciado exitosamente!</h2>
+                <p class="muted">El evento ha sido guardado en la base de datos corporativa.</p>
+            </div>
+            <button type="button" class="modal-close" onclick="cerrarConfirmacion()" aria-label="Cerrar">✕</button>
+        </header>
+
+        <div id="confirmacion-resumen" style="display:grid;gap:10px;padding:4px 0 18px;">
+            <!-- Rellenado dinámicamente por JS -->
+        </div>
+
+        <footer class="modal-footer">
+            <button type="button" class="button button--primary" onclick="cerrarConfirmacion()">
+                <span aria-hidden="true">✓</span> Entendido, ir al dashboard
+            </button>
+        </footer>
+    </div>
+</div>
+
 <!-- Modal emergente para dar de alta un evento -->
 <div class="modal-backdrop" id="modal-evento-backdrop" data-event-modal hidden onclick="if(event.target === this) cerrarModalEvento()">
     <div class="modal-dialog panel-card" role="dialog" aria-modal="true" aria-labelledby="modal-evento-titulo">
@@ -156,29 +182,17 @@
 </div>
 
 <script>
-function abrirModalEvento() {
-    const modal = document.getElementById('modal-evento-backdrop');
-    if (modal) {
-        regenerarFolioModal();
-        modal.removeAttribute('hidden');
-        modal.classList.add('is-open');
-        document.body.style.overflow = 'hidden';
-        setTimeout(function() {
-            const input = document.getElementById('input-nombre-evento');
-            if (input) input.focus();
-        }, 50);
-    }
+/* ── Helpers ── */
+function fmtFecha(valor) {
+    if (!valor) return '—';
+    return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+        .format(new Date(String(valor).slice(0, 10) + 'T12:00:00Z'));
+}
+function fmtDinero(valor) {
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(valor) || 0);
 }
 
-function cerrarModalEvento() {
-    const modal = document.getElementById('modal-evento-backdrop');
-    if (modal) {
-        modal.setAttribute('hidden', '');
-        modal.classList.remove('is-open');
-        document.body.style.overflow = '';
-    }
-}
-
+/* ── Folio ── */
 function regenerarFolioModal(e) {
     if (e) e.preventDefault();
     const num = Math.floor(100000 + Math.random() * 900000);
@@ -188,5 +202,183 @@ function regenerarFolioModal(e) {
     if (input) input.value = folio;
     if (display) display.textContent = folio;
 }
+
+/* ── Modal de alta ── */
+function abrirModalEvento() {
+    const modal = document.getElementById('modal-evento-backdrop');
+    if (!modal) return;
+    regenerarFolioModal();
+    // Limpiar errores anteriores
+    const err = modal.querySelector('[data-event-form-error]');
+    if (err) { err.hidden = true; err.textContent = ''; }
+    modal.removeAttribute('hidden');
+    modal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function() {
+        const input = document.getElementById('input-nombre-evento');
+        if (input) input.focus();
+    }, 50);
+}
+
+function cerrarModalEvento() {
+    const modal = document.getElementById('modal-evento-backdrop');
+    if (!modal) return;
+    modal.setAttribute('hidden', '');
+    modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+    const form = modal.querySelector('[data-event-create-form]');
+    if (form) form.reset();
+}
+
+/* ── Modal de confirmación ── */
+function mostrarConfirmacion(evento) {
+    const resumen = document.getElementById('confirmacion-resumen');
+    if (!resumen) return;
+
+    const filas = [
+        { icon: '', label: 'Folio',          valor: evento.folio },
+        { icon: '', label: 'Evento',          valor: evento.nombre },
+        { icon: '', label: 'Tipo',            valor: evento.tipo },
+        { icon: '', label: 'Fecha',          valor: fmtFecha(evento.fecha_evento) },
+        { icon: '', label: 'Recinto',         valor: evento.ubicacion },
+        { icon: '', label: 'Invitados',       valor: evento.numero_invitados ?? 0 },
+        { icon: '', label: 'Presupuesto',     valor: fmtDinero(evento.presupuesto) },
+        { icon: '', label: 'Estado',          valor: evento.estado ?? 'Planificando' },
+    ];
+
+    resumen.innerHTML = filas.map(function(f) {
+        return '<div style="display:flex;align-items:center;gap:12px;padding:9px 12px;background:#F8FAFC;border-radius:8px;border:1px solid #E5E7EB;">' +
+            '<span style="width:22px;text-align:center;color:#3B82F6;" aria-hidden="true">' + f.icon + '</span>' +
+            '<span style="flex:1;font-size:12px;color:#64748B;">' + f.label + '</span>' +
+            '<strong style="font-size:13px;color:#111827;">' + f.valor + '</strong>' +
+        '</div>';
+    }).join('');
+
+    const modal = document.getElementById('modal-confirmacion-backdrop');
+    if (modal) {
+        modal.removeAttribute('hidden');
+        modal.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function cerrarConfirmacion() {
+    const modal = document.getElementById('modal-confirmacion-backdrop');
+    if (modal) {
+        modal.setAttribute('hidden', '');
+        modal.classList.remove('is-open');
+        document.body.style.overflow = '';
+    }
+    actualizarDashboard();
+}
+
+/* ── Actualizar dashboard (tarjetas + métricas) ── */
+function actualizarDashboard() {
+    const apiUrl = '{{ url("/api/eventos") }}';
+    fetch(apiUrl, { headers: { Accept: 'application/json' } })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            const eventos = resp.data ?? resp;
+
+            // Actualizar métricas
+            const statEventos = document.getElementById('stat-active-events');
+            const statGuests  = document.getElementById('stat-total-guests');
+            if (statEventos) statEventos.textContent = eventos.length + ' eventos';
+            if (statGuests) {
+                const total = eventos.reduce(function(s, e) { return s + (parseInt(e.numero_invitados, 10) || 0); }, 0);
+                statGuests.textContent = total + ' comensales';
+            }
+
+            // Actualizar contador de sección
+            const countLabel = document.querySelector('[data-event-count]');
+            if (countLabel) countLabel.textContent = eventos.length + ' eventos';
+
+            // Re-renderizar tarjetas
+            const container = document.querySelector('[data-events-container]');
+            const template  = document.getElementById('event-card-template');
+            if (!container || !template) return;
+
+            container.replaceChildren();
+            if (!eventos.length) {
+                container.innerHTML = '<p class="loading-state">Aún no hay eventos registrados.</p>';
+                return;
+            }
+            eventos.forEach(function(evento) {
+                const card = template.content.firstElementChild.cloneNode(true);
+                card.querySelector('[data-event-type]').textContent     = evento.tipo;
+                card.querySelector('[data-event-state]').textContent    = evento.estado;
+                card.querySelector('[data-event-name]').textContent     = evento.nombre;
+                card.querySelector('[data-event-date]').textContent     = fmtFecha(evento.fecha_evento);
+                card.querySelector('[data-event-location]').textContent = evento.ubicacion;
+                card.querySelector('[data-event-guests]').textContent   = evento.numero_invitados ?? 0;
+                const budget = card.querySelector('[data-event-budget]');
+                if (budget) budget.textContent = fmtDinero(evento.presupuesto);
+                card.querySelector('[data-event-folio]').textContent    = 'Folio ' + evento.folio;
+                card.querySelector('[data-event-detail]').href          = '/eventos/' + evento.id;
+                container.append(card);
+            });
+        })
+        .catch(function() {
+            // Si falla el fetch, dejamos las tarjetas actuales sin cambio
+        });
+}
+
+/* ── Intercepción del submit del formulario ── */
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('[data-event-create-form]');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const errorBox = form.querySelector('[data-event-form-error]');
+        if (errorBox) { errorBox.hidden = true; errorBox.textContent = ''; }
+
+        const formData = new FormData(form);
+        const datos = Object.fromEntries(formData.entries());
+        if (datos.numero_invitados) datos.numero_invitados = parseInt(datos.numero_invitados, 10);
+        if (datos.presupuesto)      datos.presupuesto      = parseFloat(datos.presupuesto);
+
+        const submitBtn = document.getElementById('btn-confirmar-creacion');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span aria-hidden="true">⏳</span> Registrando…';
+        }
+
+        fetch('{{ url("/api/eventos") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(datos),
+        })
+        .then(function(r) {
+            if (!r.ok) {
+                return r.json().then(function(body) {
+                    const msg = Object.values(body.errors ?? {}).flat()[0] ?? body.message ?? 'Error al registrar.';
+                    throw new Error(msg);
+                });
+            }
+            return r.json();
+        })
+        .then(function(eventoCreado) {
+            cerrarModalEvento();
+            mostrarConfirmacion(eventoCreado);
+        })
+        .catch(function(err) {
+            if (errorBox) {
+                errorBox.textContent = err.message;
+                errorBox.hidden = false;
+            }
+        })
+        .finally(function() {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span aria-hidden="true">＋</span> Guardar y comenzar evento';
+            }
+        });
+    });
+
+    // Cargar dashboard inicial con datos frescos de la API
+    actualizarDashboard();
+});
 </script>
 @endsection
