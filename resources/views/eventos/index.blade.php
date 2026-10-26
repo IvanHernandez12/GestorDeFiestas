@@ -7,9 +7,9 @@
         <h1>Organiza tu evento<br><span>de principio a fin.</span></h1>
         <p>Crea el evento, define requerimientos de salón y mobiliario, gestiona la lista de comensales y comparte invitaciones inteligentes con código QR.</p>
         <div class="hero-actions">
-            <a class="button button--primary button--lg" href="{{ route('eventos.crear') }}" id="btn-iniciar-evento">
+            <button type="button" class="button button--primary button--lg" data-open-event-modal onclick="abrirModalEvento()" id="btn-iniciar-evento">
                 <span aria-hidden="true">＋</span> Iniciar evento
-            </a>
+            </button>
             <a class="button button--secondary button--lg" href="#tus-eventos">
                 <span aria-hidden="true">▣</span> Ver catálogo
             </a>
@@ -52,7 +52,7 @@
             <h2>Tus eventos</h2>
             <span class="muted" data-event-count>{{ isset($eventos) ? $eventos->count() . ' eventos' : '' }}</span>
         </div>
-        <a class="button button--primary button--sm" href="{{ route('eventos.crear') }}">
+        <a class="button button--primary button--sm" data-open-event-modal onclick="abrirModalEvento()" href="#">
             <span aria-hidden="true">＋</span> Iniciar evento
         </a>
     </div>

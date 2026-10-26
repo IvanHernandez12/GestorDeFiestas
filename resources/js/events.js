@@ -1,10 +1,3 @@
-/**
- * Solicita JSON a los endpoints de eventos.
- *
- * @param {string} url
- * @param {RequestInit} options
- * @returns {Promise<any>}
- */
 
 
 /**
@@ -12,6 +5,14 @@
  * @author Ivan Hernández Hinojosa
  * @created 20/octubre/2026
  * @description 
+ */
+
+/**
+ * Solicita JSON a los endpoints de eventos.
+ *
+ * @param {string} url
+ * @param {RequestInit} options
+ * @returns {Promise<any>}
  */
 
 

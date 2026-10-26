@@ -1,5 +1,3 @@
-import { initializeEventModal, loadEventDashboard, loadEventDetail, showToast } from './events.js';
-import { initializeVenueEditor } from './venue-editor.js';
 
 /**
  * @company Bigbitbyte
@@ -7,6 +5,9 @@ import { initializeVenueEditor } from './venue-editor.js';
  * @created 20/octubre/2026
  * @description Inicializa los componentes de la interfaz de eventos y modales.
  */
+
+import { initializeEventModal, loadEventDashboard, loadEventDetail, showToast } from './events.js';
+import { initializeVenueEditor } from './venue-editor.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const eventList = document.querySelector('[data-event-list]');
