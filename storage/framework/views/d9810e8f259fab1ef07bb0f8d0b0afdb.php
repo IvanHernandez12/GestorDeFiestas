@@ -366,12 +366,192 @@ function actualizarDashboard() {
         });
 }
 
-/* ── Intercepción del submit del formulario ── */
-document.addEventListener('DOMContentLoaded', function() {
-    // El submit del formulario es gestionado por el módulo events.js (initializeEventModal).
-    // Este script sólo inicializa el dashboard y maneja el modal de confirmación.
-    actualizarDashboard();
-});
+/* ─────────────────────────────────────────────────────────────
+   Validaciones de formulario (inline — sin dependencia del módulo JS)
+   Estas mismas reglas también se aplican desde form-validators.js
+   para garantizar doble cobertura.
+───────────────────────────────────────────────────────────── */
+
+(function() {
+    /** Límites de dígitos y valores para campos numéricos */
+    var NUM_RULES = {
+        numero_invitados: { max: 5000, maxDigits: 4, integer: true,  label: 'Número de invitados' },
+        presupuesto:      { max: 10000000, maxDigits: 8, integer: false, label: 'Presupuesto' }
+    };
+    /** Límites de longitud para campos de texto */
+    var TXT_MAX = { nombre: 120, ubicacion: 160, reglamento: 500 };
+
+    /** Fechas permitidas (±2 años) */
+    var today = new Date();
+    var minYear = new Date(today); minYear.setFullYear(today.getFullYear() - 2);
+    var maxYear = new Date(today); maxYear.setFullYear(today.getFullYear() + 2);
+    var DATE_MIN = minYear.toISOString().slice(0, 10);
+    var DATE_MAX = maxYear.toISOString().slice(0, 10);
+
+    function showError(field, msg) {
+        var el = field.parentElement && field.parentElement.querySelector('.field-error');
+        if (!el) {
+            el = document.createElement('span');
+            el.className = 'field-error';
+            el.setAttribute('role', 'alert');
+            field.parentNode.insertBefore(el, field.nextSibling);
+        }
+        el.textContent = msg;
+        field.setAttribute('aria-invalid', msg ? 'true' : 'false');
+        field.classList.toggle('input--error', Boolean(msg));
+    }
+
+    /** Bloquea todos los vectores de pegado en un campo */
+    function noPaste(field) {
+        field.addEventListener('paste', function(e) { e.preventDefault(); e.stopPropagation(); });
+        field.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+                e.preventDefault(); e.stopPropagation();
+            }
+        });
+        field.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+        field.addEventListener('drop', function(e) { e.preventDefault(); });
+    }
+
+    /** Sanitiza campo entero: elimina no-dígitos, recorta dígitos, clamp al max */
+    function cleanInt(field, name) {
+        var rule = NUM_RULES[name];
+        var val = field.value.replace(/\D/g, '');
+        if (val.length > rule.maxDigits) val = val.slice(0, rule.maxDigits);
+        if (val !== '' && parseInt(val, 10) > rule.max) val = String(rule.max);
+        field.value = val;
+        if (val !== '' && parseInt(val, 10) < 1) {
+            showError(field, rule.label + ' no puede ser menor a 1.');
+        } else {
+            showError(field, '');
+        }
+    }
+
+    /** Sanitiza campo decimal: elimina no-dígitos/punto, un solo punto, clamp */
+    function cleanDec(field, name) {
+        var rule = NUM_RULES[name];
+        var val = field.value.replace(/[^0-9.]/g, '');
+        var parts = val.split('.');
+        if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+        parts = val.split('.');
+        if (parts[0].length > rule.maxDigits) {
+            val = parts[0].slice(0, rule.maxDigits) + (parts[1] !== undefined ? '.' + parts[1] : '');
+        }
+        var num = parseFloat(val);
+        if (!isNaN(num) && num > rule.max) val = String(rule.max);
+        field.value = val;
+        if (val !== '' && !isNaN(num) && num < 500) {
+            showError(field, rule.label + ' no puede ser menor a $500.');
+        } else {
+            showError(field, '');
+        }
+    }
+
+    /** Trunca texto al máximo */
+    function cleanText(field, max) {
+        if (field.value.length > max) {
+            field.value = field.value.slice(0, max);
+            showError(field, 'Máximo ' + max + ' caracteres permitidos.');
+        } else {
+            showError(field, '');
+        }
+    }
+
+    /** Valida y corrige fecha fuera de rango */
+    function cleanDate(field) {
+        if (!field.value) return;
+        if (field.value < DATE_MIN) { field.value = DATE_MIN; showError(field, 'Fecha fuera de rango, ajustada al mínimo permitido.'); }
+        else if (field.value > DATE_MAX) { field.value = DATE_MAX; showError(field, 'Fecha fuera de rango, ajustada al máximo permitido.'); }
+        else showError(field, '');
+    }
+
+    function initForm(form) {
+        if (!form) return;
+
+        /* ── Número de invitados ── */
+        var inv = form.querySelector('[name="numero_invitados"]');
+        if (inv) {
+            inv.setAttribute('inputmode', 'numeric');
+            inv.setAttribute('autocomplete', 'off');
+            noPaste(inv);
+            inv.addEventListener('keydown', function(e) {
+                var nav = ['Backspace','Delete','Tab','Escape','Enter','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'];
+                if (nav.indexOf(e.key) !== -1 || e.ctrlKey || e.metaKey) return;
+                if (!/^\d$/.test(e.key)) e.preventDefault();
+            });
+            inv.addEventListener('input', function() { cleanInt(inv, 'numero_invitados'); });
+            inv.addEventListener('blur',  function() { cleanInt(inv, 'numero_invitados'); });
+        }
+
+        /* ── Presupuesto ── */
+        var pres = form.querySelector('[name="presupuesto"]');
+        if (pres) {
+            pres.setAttribute('inputmode', 'decimal');
+            pres.setAttribute('autocomplete', 'off');
+            noPaste(pres);
+            pres.addEventListener('keydown', function(e) {
+                var nav = ['Backspace','Delete','Tab','Escape','Enter','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'];
+                if (nav.indexOf(e.key) !== -1 || e.ctrlKey || e.metaKey) return;
+                if (e.key === '.') { if (pres.value.includes('.')) e.preventDefault(); return; }
+                if (!/^\d$/.test(e.key)) e.preventDefault();
+            });
+            pres.addEventListener('input', function() { cleanDec(pres, 'presupuesto'); });
+            pres.addEventListener('blur',  function() { cleanDec(pres, 'presupuesto'); });
+        }
+
+        /* ── Fecha ── */
+        var fecha = form.querySelector('[name="fecha_evento"]');
+        if (fecha) {
+            fecha.setAttribute('min', DATE_MIN);
+            fecha.setAttribute('max', DATE_MAX);
+            noPaste(fecha);
+            fecha.addEventListener('change', function() { cleanDate(fecha); });
+            fecha.addEventListener('blur',   function() { cleanDate(fecha); });
+        }
+
+        /* ── Campos de texto ── */
+        var textCfg = [
+            { name: 'nombre', max: TXT_MAX.nombre },
+            { name: 'ubicacion', max: TXT_MAX.ubicacion },
+            { name: 'reglamento', max: TXT_MAX.reglamento }
+        ];
+        textCfg.forEach(function(cfg) {
+            var f = form.querySelector('[name="' + cfg.name + '"]');
+            if (!f) return;
+            f.setAttribute('maxlength', String(cfg.max));
+            f.setAttribute('autocomplete', 'off');
+            noPaste(f);
+            f.addEventListener('input', function() { cleanText(f, cfg.max); });
+        });
+
+        /* ── Validación en submit ── */
+        form.addEventListener('submit', function(e) {
+            var valid = true;
+            if (inv)   { cleanInt(inv, 'numero_invitados');  if (inv.getAttribute('aria-invalid') === 'true')   valid = false; }
+            if (pres)  { cleanDec(pres, 'presupuesto');      if (pres.getAttribute('aria-invalid') === 'true')  valid = false; }
+            if (fecha) { cleanDate(fecha);                   if (fecha.getAttribute('aria-invalid') === 'true') valid = false; }
+            textCfg.forEach(function(cfg) {
+                var f = form.querySelector('[name="' + cfg.name + '"]');
+                if (!f) return;
+                cleanText(f, cfg.max);
+                if (f.getAttribute('aria-invalid') === 'true') valid = false;
+            });
+            if (!valid) {
+                e.stopImmediatePropagation();
+                var firstErr = form.querySelector('[aria-invalid="true"]');
+                if (firstErr) firstErr.focus();
+                // No llamamos e.preventDefault() para que el handler de events.js
+                // pueda mostrar el mensaje de error global si lo necesita.
+            }
+        }, true); // useCapture: true para ejecutarse antes del handler de events.js
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var form = document.querySelector('[data-event-create-form]');
+        initForm(form);
+        actualizarDashboard();
+    });
+})();
 </script>
 <?php $__env->stopSection(); ?>
 

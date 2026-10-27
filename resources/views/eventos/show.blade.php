@@ -127,4 +127,73 @@
         </div>
     </section>
 </section>
+
+<script>
+(function() {
+    var TXT_MAX = { nombre: 120, correo: 160 };
+
+    function showError(field, msg) {
+        var el = field.parentElement && field.parentElement.querySelector('.field-error');
+        if (!el) {
+            el = document.createElement('span');
+            el.className = 'field-error';
+            el.setAttribute('role', 'alert');
+            field.parentNode.insertBefore(el, field.nextSibling);
+        }
+        el.textContent = msg;
+        field.setAttribute('aria-invalid', msg ? 'true' : 'false');
+        field.classList.toggle('input--error', Boolean(msg));
+    }
+
+    function noPaste(field) {
+        field.addEventListener('paste', function(e) { e.preventDefault(); e.stopPropagation(); });
+        field.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+                e.preventDefault(); e.stopPropagation();
+            }
+        });
+        field.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+        field.addEventListener('drop', function(e) { e.preventDefault(); });
+    }
+
+    function cleanText(field, max) {
+        if (field.value.length > max) {
+            field.value = field.value.slice(0, max);
+            showError(field, 'Máximo ' + max + ' caracteres permitidos.');
+        } else {
+            showError(field, '');
+        }
+    }
+
+    function initGuestForm(form) {
+        if (!form) return;
+
+        var nombre = form.querySelector('[name="nombre"]');
+        if (nombre) {
+            nombre.setAttribute('maxlength', String(TXT_MAX.nombre));
+            nombre.setAttribute('autocomplete', 'off');
+            noPaste(nombre);
+            nombre.addEventListener('input', function() { cleanText(nombre, TXT_MAX.nombre); });
+        }
+
+        var correo = form.querySelector('[name="correo"]');
+        if (correo) {
+            correo.setAttribute('maxlength', String(TXT_MAX.correo));
+            correo.setAttribute('autocomplete', 'off');
+            noPaste(correo);
+            correo.addEventListener('input', function() { cleanText(correo, TXT_MAX.correo); });
+            correo.addEventListener('blur', function() {
+                if (!correo.value) { showError(correo, ''); return; }
+                var ok = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(correo.value);
+                showError(correo, ok ? '' : 'Correo no válido (ej. usuario@dominio.com).');
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var form = document.querySelector('[data-guest-form]');
+        initGuestForm(form);
+    });
+})();
+</script>
 @endsection
