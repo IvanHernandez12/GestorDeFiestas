@@ -135,6 +135,12 @@ function createEventCard(evento) {
     card.querySelector('[data-event-folio]').textContent = `Folio ${evento.folio}`;
     card.querySelector('[data-event-detail]').href = `/eventos/${evento.id}`;
 
+    const deleteBtn = card.querySelector('[data-delete-event]');
+    if (deleteBtn) {
+        deleteBtn.setAttribute('data-delete-event', evento.id);
+        deleteBtn.setAttribute('data-event-name', evento.nombre);
+    }
+
     return card;
 }
 
@@ -320,6 +326,28 @@ function renderEvent(evento) {
         ? `Por categorías (${evento.prioridad_invitados.join(', ')})`
         : 'Por categorías (Familia, Amigos, Trabajo, General)';
     document.querySelector('#qr-folio').textContent = `Folio ${evento.folio}`;
+
+    const root = document.querySelector('[data-event-detail-view]');
+    if (root && evento.distribucion_salon) {
+        root.dataset.venueLayout = JSON.stringify(evento.distribucion_salon);
+    }
+
+    const editNombre = document.getElementById('edit-nombre');
+    if (editNombre) editNombre.value = evento.nombre || '';
+    const editTipo = document.getElementById('edit-tipo');
+    if (editTipo) editTipo.value = evento.tipo || 'Boda';
+    const editEstado = document.getElementById('edit-estado');
+    if (editEstado) editEstado.value = evento.estado || 'Planificando';
+    const editFecha = document.getElementById('edit-fecha');
+    if (editFecha && evento.fecha_evento) editFecha.value = String(evento.fecha_evento).slice(0, 10);
+    const editUbicacion = document.getElementById('edit-ubicacion');
+    if (editUbicacion) editUbicacion.value = evento.ubicacion || '';
+    const editInvitados = document.getElementById('edit-invitados');
+    if (editInvitados) editInvitados.value = evento.numero_invitados ?? 0;
+    const editPresupuesto = document.getElementById('edit-presupuesto');
+    if (editPresupuesto) editPresupuesto.value = evento.presupuesto ?? 0;
+    const editReglamento = document.getElementById('edit-reglamento');
+    if (editReglamento) editReglamento.value = evento.reglamento || '';
 }
 
 /**

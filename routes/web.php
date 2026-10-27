@@ -14,3 +14,6 @@ Route::get('/', [EventoController::class, 'dashboard'])->name('eventos.dashboard
 Route::get('/eventos/crear', [EventoController::class, 'crear'])->name('eventos.crear');
 Route::post('/eventos', [EventoController::class, 'store'])->name('eventos.store');
 Route::get('/eventos/{evento}', [EventoController::class, 'detalle'])->name('eventos.detalle');
+Route::put('/eventos/{evento}', [EventoController::class, 'update'])->name('eventos.update');
+Route::delete('/eventos/{evento}', [EventoController::class, 'destroy'])->name('eventos.destroy');
+

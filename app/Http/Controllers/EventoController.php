@@ -95,6 +95,48 @@ class EventoController extends Controller
      */
     public function detalle(Evento $evento): View
     {
-        return view('eventos.show', ['eventoId' => $evento->id]);
+        return view('eventos.show', [
+            'eventoId' => $evento->id,
+            'evento' => $evento,
+        ]);
+    }
+
+    /**
+     * Actualiza la información de un evento desde formulario web o modal.
+     *
+     * @param Request $request
+     * @param Evento $evento
+     * @return RedirectResponse
+     */
+    public function update(Request $request, Evento $evento): RedirectResponse
+    {
+        $datos = $request->validate([
+            'nombre' => ['sometimes', 'required', 'string', 'max:120'],
+            'tipo' => ['sometimes', 'required', 'string', 'max:40'],
+            'estado' => ['sometimes', 'required', 'string', 'max:40'],
+            'fecha_evento' => ['sometimes', 'required', 'date'],
+            'ubicacion' => ['sometimes', 'required', 'string', 'max:160'],
+            'numero_invitados' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'presupuesto' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'reglamento' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $evento->update($datos);
+
+        return redirect()->route('eventos.detalle', $evento)->with('status', '¡Información del evento "' . $evento->nombre . '" actualizada correctamente!');
+    }
+
+    /**
+     * Elimina un evento y redirige al dashboard.
+     *
+     * @param Evento $evento
+     * @return RedirectResponse
+     */
+    public function destroy(Evento $evento): RedirectResponse
+    {
+        $nombre = $evento->nombre;
+        $evento->delete();
+
+        return redirect()->route('eventos.dashboard')->with('status', 'El evento "' . $nombre . '" ha sido eliminado correctamente.');
     }
 }

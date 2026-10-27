@@ -115,6 +115,7 @@ class EventoController extends Controller
             'presupuesto' => ['sometimes', 'numeric', 'min:0'],
             'reglamento' => ['nullable', 'string', 'max:500'],
             'prioridad_invitados' => ['nullable', 'array'],
+            'distribucion_salon' => ['nullable', 'array'],
         ]);
 
         $evento->update($datos);
