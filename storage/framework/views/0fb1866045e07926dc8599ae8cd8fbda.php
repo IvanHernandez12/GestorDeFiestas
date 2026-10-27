@@ -28,10 +28,15 @@ foreach ($attributes->all() as $__key => $__value) {
 
 unset($__defined_vars, $__key, $__value); ?>
 
-<article class="event-card">
-    <div class="event-card__labels">
-        <span class="badge badge--type" data-event-type><?php echo e($evento?->tipo); ?></span>
-        <span class="badge badge--state" data-event-state><?php echo e($evento?->estado); ?></span>
+<article class="event-card" data-event-card data-event-id="<?php echo e($evento?->id); ?>">
+    <div class="event-card__header-row">
+        <div class="event-card__labels">
+            <span class="badge badge--type" data-event-type><?php echo e($evento?->tipo); ?></span>
+            <span class="badge badge--state" data-event-state><?php echo e($evento?->estado); ?></span>
+        </div>
+        <button type="button" class="btn-card-delete" data-delete-event="<?php echo e($evento?->id); ?>" data-event-name="<?php echo e($evento?->nombre); ?>" title="Eliminar evento" aria-label="Eliminar evento">
+            <span aria-hidden="true">🗑</span>
+        </button>
     </div>
     <h2 class="event-card__title" data-event-name><?php echo e($evento?->nombre); ?></h2>
     <div class="event-card__facts">

@@ -4,6 +4,7 @@
  * @company Bigbitbyte
  * @authors Ivan Hernández Hinojosa, Jorge Darien Cabrera Bastidas, Carlos González Laines
  * @created 2026
+ * @modified 27/octubre/2026
  * @description Gestiona las operaciones REST de eventos.
  */
 
@@ -14,6 +15,7 @@ use App\Models\Evento;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class EventoController extends Controller
 {
@@ -68,14 +70,14 @@ class EventoController extends Controller
 
         $datos = $request->validate([
             'folio' => ['required', 'string', 'max:20', 'unique:eventos,folio'],
-            'nombre' => ['required', 'string', 'max:120'],
-            'tipo' => ['required', 'string', 'max:40'],
+            'nombre' => ['required', 'string', 'max:60', 'not_regex:/\p{N}/u'],
+            'tipo' => ['required', Rule::in(['Boda', 'XV Años', 'Cumpleaños', 'Graduación', 'Bautizo', 'Corporativo', 'Reunión Social'])],
             'estado' => ['required', 'string', 'max:40'],
-            'fecha_evento' => ['required', 'date'],
-            'ubicacion' => ['required', 'string', 'max:160'],
-            'numero_invitados' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'presupuesto' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'reglamento' => ['nullable', 'string', 'max:500'],
+            'fecha_evento' => ['required', 'date', 'after_or_equal:' . now()->subYears(2)->toDateString(), 'before_or_equal:' . now()->addYears(2)->toDateString()],
+            'ubicacion' => ['required', 'string', 'max:80'],
+            'numero_invitados' => ['required', 'integer', 'min:1', 'max:5000'],
+            'presupuesto' => ['required', 'numeric', 'min:500', 'max:10000000', 'decimal:0,2'],
+            'reglamento' => ['nullable', 'string', 'max:250'],
             'prioridad_invitados' => ['nullable', 'array'],
         ]);
 
@@ -106,17 +108,42 @@ class EventoController extends Controller
     {
         $datos = $request->validate([
             'folio' => ['sometimes', 'string', 'max:20', Rule::unique('eventos', 'folio')->ignore($evento->id)],
-            'nombre' => ['sometimes', 'string', 'max:120'],
-            'tipo' => ['sometimes', 'string', 'max:40'],
+            'nombre' => ['sometimes', 'string', 'max:60', 'not_regex:/\p{N}/u'],
+            'tipo' => ['sometimes', Rule::in(['Boda', 'XV Años', 'Cumpleaños', 'Graduación', 'Bautizo', 'Corporativo', 'Reunión Social'])],
             'estado' => ['sometimes', 'string', 'max:40'],
             'fecha_evento' => ['sometimes', 'date'],
-            'ubicacion' => ['sometimes', 'string', 'max:160'],
-            'numero_invitados' => ['sometimes', 'integer', 'min:0'],
-            'presupuesto' => ['sometimes', 'numeric', 'min:0'],
-            'reglamento' => ['nullable', 'string', 'max:500'],
+            'ubicacion' => ['sometimes', 'string', 'max:80'],
+            'numero_invitados' => ['sometimes', 'integer', 'min:1', 'max:5000'],
+            'presupuesto' => ['sometimes', 'numeric', 'min:500', 'max:10000000', 'decimal:0,2'],
+            'reglamento' => ['nullable', 'string', 'max:250'],
             'prioridad_invitados' => ['nullable', 'array'],
             'distribucion_salon' => ['nullable', 'array'],
+            'proveedores_seleccionados' => ['nullable', 'array', 'max:8'],
+            'proveedores_seleccionados.*.key' => ['required', 'string', 'max:40'],
+            'proveedores_seleccionados.*.name' => ['required', 'string', 'max:100'],
+            'proveedores_seleccionados.*.category' => ['required', 'string', 'max:60'],
+            'proveedores_seleccionados.*.cost' => ['required', 'numeric', 'min:1', 'max:10000000'],
+            'proveedores_seleccionados.*.delivery_status' => ['sometimes', Rule::in(['Pendiente', 'En proceso', 'Entregado'])],
+            'proveedores_seleccionados.*.delivery_date' => ['nullable', 'date'],
+            'proveedores_seleccionados.*.phone' => ['nullable', 'string', 'max:30'],
+            'proveedores_seleccionados.*.email' => ['nullable', 'email', 'max:160'],
         ]);
+
+        if (array_key_exists('proveedores_seleccionados', $datos)) {
+            $proveedores = collect($datos['proveedores_seleccionados'] ?? []);
+            $costoTotal = $proveedores->sum('cost');
+            $limiteTotal = (float) $evento->presupuesto * 0.70;
+            $limiteIndividual = (float) $evento->presupuesto * 0.35;
+            $costoExcesivo = $proveedores->contains(
+                fn (array $proveedor): bool => (float) $proveedor['cost'] > $limiteIndividual
+            );
+
+            if ($costoExcesivo || $costoTotal > $limiteTotal) {
+                throw ValidationException::withMessages([
+                    'proveedores_seleccionados' => 'La selección debe respetar el límite de 35 % por proveedor y 70 % en conjunto.',
+                ]);
+            }
+        }
 
         $evento->update($datos);
 

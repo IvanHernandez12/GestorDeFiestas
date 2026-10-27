@@ -162,7 +162,7 @@
             <div class="form-grid-modal">
                 <label>
                     <span>Nombre del evento <b class="required">*</b></span>
-                    <input name="nombre" id="input-nombre-evento" type="text" placeholder="ej. Boda de Laura y Carlos" maxlength="120" required autofocus>
+                    <input name="nombre" id="input-nombre-evento" type="text" placeholder="ej. Boda de Laura y Carlos" maxlength="60" required autofocus>
                 </label>
 
                 <label>
@@ -188,27 +188,27 @@
 
                 <label>
                     <span>Ubicación o Recinto <b class="required">*</b></span>
-                    <input name="ubicacion" type="text" placeholder="ej. Salón Los Ángeles, Toluca" maxlength="160" required>
+                    <input name="ubicacion" type="text" placeholder="ej. Salón Los Ángeles, Toluca" maxlength="80" required>
                 </label>
 
                 <label>
                     <span>Número estimado de invitados</span>
                     <input name="numero_invitados" type="text" inputmode="numeric"
-                        pattern="[0-9]*" placeholder="30" value="30"
+                        pattern="[0-9]*" placeholder="30" value="30" required
                         autocomplete="off" data-validate-numeric>
                 </label>
 
                 <label>
                     <span>Presupuesto planeado ($ MXN)</span>
                     <input name="presupuesto" type="text" inputmode="decimal"
-                        pattern="[0-9]*\.?[0-9]*" placeholder="100000" value="100000"
+                        pattern="[0-9]*\.?[0-9]*" placeholder="100000" value="100000" required
                         autocomplete="off" data-validate-numeric data-allow-decimal="true">
                 </label>
             </div>
 
             <label class="form-row-full">
                 <span>Reglamento / Observaciones generales</span>
-                <input name="reglamento" type="text" placeholder="ej. No niños, código de vestimenta formal, acceso con QR" maxlength="500">
+                <input name="reglamento" type="text" placeholder="ej. No niños, código de vestimenta formal, acceso con QR" maxlength="250">
             </label>
 
             <p class="form-error" data-event-form-error hidden></p>
@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', function() {
         presupuesto:      { max: 10000000, maxDigits: 8, integer: false, label: 'Presupuesto' }
     };
     /** Límites de longitud para campos de texto */
-    var TXT_MAX = { nombre: 120, ubicacion: 160, reglamento: 500 };
+    var TXT_MAX = { nombre: 60, ubicacion: 80, reglamento: 250 };
 
     /** Fechas permitidas (±2 años) */
     var today = new Date();

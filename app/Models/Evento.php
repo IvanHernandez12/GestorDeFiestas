@@ -30,6 +30,7 @@ class Evento extends Model
         'reglamento',
         'prioridad_invitados',
         'distribucion_salon',
+        'proveedores_seleccionados',
     ];
 
     /**
@@ -55,6 +56,7 @@ class Evento extends Model
             'presupuesto' => 'decimal:2',
             'prioridad_invitados' => 'array',
             'distribucion_salon' => 'array',
+            'proveedores_seleccionados' => 'array',
         ];
     }
 }

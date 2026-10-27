@@ -264,14 +264,12 @@ export function initializeEventModal(root) {
                 submitBtn.innerHTML = '<span aria-hidden="true">⏳</span> Registrando…';
             }
 
-            await requestJson(apiUrl, {
+            const creado = await requestJson(apiUrl, {
                 method: 'POST',
                 body: JSON.stringify(datos),
             });
 
-            closeModal();
-            showToast(`¡Evento "${datos.nombre}" iniciado exitosamente!`);
-            await loadEventDashboard(root);
+            window.location.assign(`/eventos/${creado.id}/proveedores`);
         } catch (error) {
             if (errorBox) {
                 errorBox.textContent = error.message;
@@ -326,6 +324,11 @@ function renderEvent(evento) {
         ? `Por categorías (${evento.prioridad_invitados.join(', ')})`
         : 'Por categorías (Familia, Amigos, Trabajo, General)';
     document.querySelector('#qr-folio').textContent = `Folio ${evento.folio}`;
+    renderProviderTracking(evento.proveedores_seleccionados ?? []);
+
+    if (window.location.hash === '#info') {
+        document.querySelector('[data-tab="info"]')?.click();
+    }
 
     const root = document.querySelector('[data-event-detail-view]');
     if (root && evento.distribucion_salon) {
@@ -348,6 +351,108 @@ function renderEvent(evento) {
     if (editPresupuesto) editPresupuesto.value = evento.presupuesto ?? 0;
     const editReglamento = document.getElementById('edit-reglamento');
     if (editReglamento) editReglamento.value = evento.reglamento || '';
+}
+
+/**
+ * Presenta solo los proveedores elegidos y guarda cambios de seguimiento.
+ *
+ * @param {Array<Record<string, any>>} providers
+ * @returns {void}
+ */
+function renderProviderTracking(providers) {
+    const list = document.querySelector('[data-provider-tracking]');
+    const root = document.querySelector('[data-event-detail-view]');
+    if (!list || !root) return;
+    list.replaceChildren();
+
+    if (!providers.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Aún no has seleccionado proveedores para este evento.';
+        list.append(empty);
+        return;
+    }
+
+    providers.forEach((provider, index) => {
+        const card = document.createElement('article');
+        card.className = 'provider-card panel-card';
+        card.dataset.providerIndex = String(index);
+        const heading = document.createElement('div');
+        heading.className = 'provider-heading';
+        const title = document.createElement('div');
+        const name = document.createElement('h2');
+        name.textContent = provider.name;
+        const category = document.createElement('p');
+        category.className = 'muted';
+        category.textContent = `${provider.category} · ${formatCurrency(provider.cost)} MXN`;
+        title.append(name, category);
+        heading.append(title);
+
+        const fields = document.createElement('div');
+        fields.className = 'provider-fields';
+        fields.append(
+            createProviderField('Fecha estimada de entrega', 'delivery_date', 'date', provider.delivery_date ?? ''),
+            createProviderStatusField(provider.delivery_status ?? 'Pendiente'),
+            createProviderField('Teléfono de contacto', 'phone', 'tel', provider.phone ?? ''),
+            createProviderField('Correo de contacto', 'email', 'email', provider.email ?? ''),
+        );
+        card.append(heading, fields);
+        list.append(card);
+    });
+
+    if (list.dataset.bound === 'true') return;
+    list.dataset.bound = 'true';
+    list.addEventListener('change', async (event) => {
+        const card = event.target.closest('[data-provider-index]');
+        if (!card) return;
+        const current = Array.from(list.querySelectorAll('[data-provider-index]')).map((item, index) => {
+            const provider = providers[index];
+            item.querySelectorAll('[data-provider-field]').forEach((input) => {
+                provider[input.dataset.providerField] = input.value;
+            });
+            return provider;
+        });
+        try {
+            await requestJson(`${root.dataset.apiUrl}/${root.dataset.eventId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ proveedores_seleccionados: current }),
+            });
+            showToast('Seguimiento del proveedor actualizado.');
+        } catch (error) {
+            showToast(error.message);
+        }
+    });
+}
+
+/** @param {string} labelText @param {string} field @param {string} type @param {string} value @returns {HTMLElement} */
+function createProviderField(labelText, field, type, value) {
+    const label = document.createElement('label');
+    label.append(document.createTextNode(labelText));
+    const input = document.createElement('input');
+    input.type = type;
+    input.value = value;
+    input.dataset.providerField = field;
+    if (field === 'email') input.maxLength = 160;
+    if (field === 'phone') input.maxLength = 30;
+    label.append(input);
+    return label;
+}
+
+/** @param {string} value @returns {HTMLElement} */
+function createProviderStatusField(value) {
+    const label = document.createElement('label');
+    label.append(document.createTextNode('Estado de entrega'));
+    const select = document.createElement('select');
+    select.dataset.providerField = 'delivery_status';
+    ['Pendiente', 'En proceso', 'Entregado'].forEach((status) => {
+        const option = document.createElement('option');
+        option.value = status;
+        option.textContent = status;
+        option.selected = status === value;
+        select.append(option);
+    });
+    label.append(select);
+    return label;
 }
 
 /**

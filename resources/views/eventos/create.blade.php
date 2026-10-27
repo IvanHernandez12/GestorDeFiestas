@@ -25,7 +25,7 @@
         <div class="form-grid-modal">
             <label>
                 <span>Nombre del evento <b class="required">*</b></span>
-                <input name="nombre" type="text" placeholder="ej. Boda de Laura y Carlos" maxlength="120" required autofocus>
+                <input name="nombre" type="text" placeholder="ej. Boda de Laura y Carlos" maxlength="60" required autofocus>
             </label>
 
             <label>
@@ -48,28 +48,29 @@
 
             <label>
                 <span>Ubicación o Recinto <b class="required">*</b></span>
-                <input name="ubicacion" type="text" placeholder="ej. Salón Los Ángeles, Toluca" maxlength="160" required>
+                <input name="ubicacion" type="text" placeholder="ej. Salón Los Ángeles, Toluca" maxlength="80" required>
             </label>
 
             <label>
                 <span>Número estimado de invitados</span>
-                <input name="numero_invitados" type="number" min="0" max="10000" placeholder="30" value="30">
+                <input name="numero_invitados" type="number" min="1" max="5000" placeholder="30" value="30" required>
             </label>
 
             <label>
                 <span>Presupuesto planeado ($ MXN)</span>
-                <input name="presupuesto" type="number" min="0" step="500" placeholder="100000" value="100000">
+                <input name="presupuesto" type="number" min="500" max="10000000" step="0.01" placeholder="100000" value="100000" required>
             </label>
         </div>
 
         <label class="form-row-full">
             <span>Reglamento / Observaciones generales</span>
-            <input name="reglamento" type="text" placeholder="ej. No niños, código de vestimenta formal, acceso con QR" maxlength="500">
+            <input name="reglamento" type="text" placeholder="ej. No niños, código de vestimenta formal, acceso con QR" maxlength="250">
         </label>
 
         @if($errors->any())
             <p class="form-error">{{ $errors->first() }}</p>
         @endif
+        <p class="form-error" data-form-validation-error hidden>Corrige los errores marcados antes de continuar.</p>
 
         <footer class="modal-footer">
             <a href="{{ route('eventos.dashboard') }}" class="button button--secondary">Cancelar</a>

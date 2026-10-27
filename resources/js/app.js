@@ -7,11 +7,14 @@
  */
 
 import { initializeEventModal, loadEventDashboard, loadEventDetail, showToast } from './events.js';
+import { applyEventFormValidations, validateEventFormBeforeSubmit } from './form-validators.js';
 import { initializeVenueEditor } from './venue-editor.js';
+import { initializeProviderSelection } from './providers.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const eventList = document.querySelector('[data-event-list]');
     const eventDetail = document.querySelector('[data-event-detail-view]');
+    const providerSelection = document.querySelector('[data-provider-selection]');
 
     if (eventList) {
         loadEventDashboard(eventList);
@@ -25,6 +28,12 @@ document.addEventListener('DOMContentLoaded', () => {
         initializePhotoPicker();
     }
 
+    if (providerSelection) {
+        initializeProviderSelection(providerSelection);
+    }
+
+    initializeStandaloneEventForm();
+
     document.addEventListener('click', () => {
         document.querySelectorAll('.toast').forEach((toast) => toast.remove());
     });
@@ -35,6 +44,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+/**
+ * Activa validaciones inmediatas en la página de alta tradicional.
+ *
+ * @returns {void}
+ */
+function initializeStandaloneEventForm() {
+    const form = document.querySelector('.event-create-form:not([data-event-create-form])');
+
+    if (!form) {
+        return;
+    }
+
+    applyEventFormValidations(form);
+    form.addEventListener('submit', (event) => {
+        if (validateEventFormBeforeSubmit(form)) {
+            return;
+        }
+
+        event.preventDefault();
+        const error = form.querySelector('[data-form-validation-error]');
+        if (error) {
+            error.hidden = false;
+        }
+        form.querySelector('[aria-invalid="true"]')?.focus();
+    });
+}
 
 /**
  * Activa los paneles de la navegación por pestañas.

@@ -4,6 +4,7 @@
  * @company Bigbitbyte
  * @authors Ivan Hernández Hinojosa, Jorge Darien Cabrera Bastidas, Carlos González Laines
  * @created 2026
+ * @modified 27/octubre/2026
  * @description Gestiona las operaciones REST de invitados de eventos.
  */
 
@@ -53,7 +54,7 @@ class InvitadoController extends Controller
     public function store(Request $request, Evento $evento): JsonResponse
     {
         $datos = $request->validate([
-            'nombre' => ['required', 'string', 'max:120'],
+            'nombre' => ['required', 'string', 'max:60', 'not_regex:/\p{N}/u'],
             'correo' => ['required', 'email', 'max:160'],
             'categoria' => ['required', Rule::in(['Familia', 'Amigos', 'Trabajo', 'General'])],
         ]);
@@ -76,7 +77,7 @@ class InvitadoController extends Controller
         abort_unless($invitado->evento_id === $evento->id, 404);
 
         $datos = $request->validate([
-            'nombre' => ['sometimes', 'string', 'max:120'],
+            'nombre' => ['sometimes', 'string', 'max:60', 'not_regex:/\p{N}/u'],
             'correo' => ['sometimes', 'email', 'max:160'],
             'categoria' => ['sometimes', Rule::in(['Familia', 'Amigos', 'Trabajo', 'General'])],
         ]);

@@ -32,15 +32,15 @@ const NUMERIC_RULES = {
     },
     presupuesto: {
         min: 500, max: 10_000_000, label: 'Presupuesto',
-        integer: false, maxDigits: 8,          // 10000000 → 8 dígitos
+        integer: false, maxDigits: 8, maxDecimals: 2,
     },
 };
 
 /** Longitudes máximas para campos de texto. */
 const TEXT_MAX_LENGTHS = {
-    nombre:     120,
-    ubicacion:  160,
-    reglamento: 500,
+    nombre:     60,
+    ubicacion:  80,
+    reglamento: 250,
     correo:     160,
 };
 
@@ -142,6 +142,7 @@ function sanitizeInteger(field, fieldName) {
 
     // 1. Quitar todo lo que no sea dígito
     let val = field.value.replace(/\D/g, '');
+    val = val.replace(/^0+(?=\d)/, '');
 
     // 2. Recortar al número máximo de dígitos
     if (val.length > rule.maxDigits) {
@@ -176,30 +177,23 @@ function sanitizeInteger(field, fieldName) {
 function sanitizeDecimal(field, fieldName) {
     const rule = NUMERIC_RULES[fieldName];
 
-    // 1. Quitar todo lo que no sea dígito o punto
-    let val = field.value.replace(/[^0-9.]/g, '');
+    const input = field.value.replace(/[^0-9.]/g, '');
+    const parts = input.split('.');
+    const integerPart = parts[0].slice(0, rule.maxDigits);
+    const decimalPart = (parts.slice(1).join('') || '').slice(0, rule.maxDecimals);
+    let val = parts.length > 1 ? `${integerPart}.${decimalPart}` : integerPart;
+    let numeric = Number.parseFloat(val);
 
-    // 2. Permitir solo el primer punto decimal
-    const parts = val.split('.');
-    if (parts.length > 2) {
-        val = parts[0] + '.' + parts.slice(1).join('');
-    }
-
-    // 3. Recortar la parte entera al máximo de dígitos
-    if (parts[0].length > rule.maxDigits) {
-        const decimals = parts[1] !== undefined ? '.' + parts[1] : '';
-        val = parts[0].slice(0, rule.maxDigits) + decimals;
-    }
-
-    // 4. Si el valor completo supera el máximo, reemplazar
-    const numeric = parseFloat(val);
     if (!isNaN(numeric) && numeric > rule.max) {
         val = String(rule.max);
+        numeric = rule.max;
     }
 
     field.value = val;
 
-    if (val !== '' && !isNaN(numeric) && numeric < rule.min) {
+    if (val !== '' && isNaN(numeric)) {
+        setFieldError(field, 'Ingresa un importe válido.');
+    } else if (val !== '' && numeric < rule.min) {
         setFieldError(field, `${rule.label} no puede ser menor a ${rule.min.toLocaleString('es-MX')}.`);
     } else {
         setFieldError(field, '');
@@ -215,6 +209,12 @@ function sanitizeDecimal(field, fieldName) {
 function sanitizeText(field, fieldName) {
     const max = TEXT_MAX_LENGTHS[fieldName];
     if (!max) return;
+
+    if (fieldName === 'nombre') {
+        field.value = field.value
+            .replace(/[0-9]/g, '')
+            .replace(/[^\p{L}\p{M}\s.'’&()\-]/gu, '');
+    }
 
     if (field.value.length > max) {
         field.value = field.value.slice(0, max);

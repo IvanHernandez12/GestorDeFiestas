@@ -2,8 +2,9 @@
 
 /**
  * @company Bigbitbyte
- * @authors Ivan Hernández Hinojosa.
+ * @authors Ivan Hernández Hinojosa
  * @created 20/octubre/2026
+ * @modified 27/octubre/2026
  * @description Entrega las vistas del dashboard y detalle de eventos.
  */
 
@@ -13,6 +14,7 @@ use App\Models\Evento;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class EventoController extends Controller
 {
@@ -61,14 +63,14 @@ class EventoController extends Controller
 
         $datos = $request->validate([
             'folio' => ['required', 'string', 'max:20', 'unique:eventos,folio'],
-            'nombre' => ['required', 'string', 'max:120'],
-            'tipo' => ['required', 'string', 'max:40'],
+            'nombre' => ['required', 'string', 'max:60', 'not_regex:/\p{N}/u'],
+            'tipo' => ['required', Rule::in(['Boda', 'XV Años', 'Cumpleaños', 'Graduación', 'Bautizo', 'Corporativo', 'Reunión Social'])],
             'estado' => ['required', 'string', 'max:40'],
-            'fecha_evento' => ['required', 'date'],
-            'ubicacion' => ['required', 'string', 'max:160'],
-            'numero_invitados' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'presupuesto' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'reglamento' => ['nullable', 'string', 'max:500'],
+            'fecha_evento' => ['required', 'date', 'after_or_equal:' . now()->subYears(2)->toDateString(), 'before_or_equal:' . now()->addYears(2)->toDateString()],
+            'ubicacion' => ['required', 'string', 'max:80'],
+            'numero_invitados' => ['required', 'integer', 'min:1', 'max:5000'],
+            'presupuesto' => ['required', 'numeric', 'min:500', 'max:10000000', 'decimal:0,2'],
+            'reglamento' => ['nullable', 'string', 'max:250'],
         ]);
 
         $evento = Evento::query()->create([
@@ -84,7 +86,18 @@ class EventoController extends Controller
             'prioridad_invitados' => ['Familia', 'Amigos', 'Trabajo', 'General'],
         ]);
 
-        return redirect()->route('eventos.dashboard')->with('status', '¡Evento "' . $evento->nombre . '" iniciado exitosamente!');
+        return redirect()->route('eventos.proveedores', $evento)->with('status', 'Evento creado. Elige proveedores dentro de tu presupuesto.');
+    }
+
+    /**
+     * Muestra las propuestas de proveedores para el presupuesto del evento.
+     *
+     * @param Evento $evento
+     * @return View
+     */
+    public function proveedores(Evento $evento): View
+    {
+        return view('eventos.proveedores', ['evento' => $evento]);
     }
 
     /**
@@ -111,14 +124,14 @@ class EventoController extends Controller
     public function update(Request $request, Evento $evento): RedirectResponse
     {
         $datos = $request->validate([
-            'nombre' => ['sometimes', 'required', 'string', 'max:120'],
-            'tipo' => ['sometimes', 'required', 'string', 'max:40'],
+            'nombre' => ['sometimes', 'required', 'string', 'max:60', 'not_regex:/\p{N}/u'],
+            'tipo' => ['sometimes', 'required', Rule::in(['Boda', 'XV Años', 'Cumpleaños', 'Graduación', 'Bautizo', 'Corporativo', 'Reunión Social'])],
             'estado' => ['sometimes', 'required', 'string', 'max:40'],
             'fecha_evento' => ['sometimes', 'required', 'date'],
-            'ubicacion' => ['sometimes', 'required', 'string', 'max:160'],
-            'numero_invitados' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'presupuesto' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'reglamento' => ['nullable', 'string', 'max:500'],
+            'ubicacion' => ['sometimes', 'required', 'string', 'max:80'],
+            'numero_invitados' => ['sometimes', 'integer', 'min:1', 'max:5000'],
+            'presupuesto' => ['sometimes', 'numeric', 'min:500', 'max:10000000', 'decimal:0,2'],
+            'reglamento' => ['nullable', 'string', 'max:250'],
         ]);
 
         $evento->update($datos);
