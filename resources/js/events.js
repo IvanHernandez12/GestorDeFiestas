@@ -4,8 +4,15 @@
  * @company Bigbitbyte
  * @author Ivan Hernández Hinojosa
  * @created 20/octubre/2026
- * @description 
+ * @description Lógica de eventos y formularios, con validaciones de entrada.
  */
+
+import {
+    applyEventFormValidations,
+    applyGuestFormValidations,
+    validateEventFormBeforeSubmit,
+    validateGuestFormBeforeSubmit,
+} from './form-validators.js';
 
 /**
  * Solicita JSON a los endpoints de eventos.
@@ -149,6 +156,9 @@ export function initializeEventModal(root) {
         return;
     }
 
+    // Aplica validaciones de teclado, pegado y rango al formulario
+    applyEventFormValidations(form);
+
     function generateFolio() {
         const randomNum = Math.floor(100000 + Math.random() * 900000);
         const folio = `EVT-${randomNum}`;
@@ -216,6 +226,17 @@ export function initializeEventModal(root) {
         if (errorBox) {
             errorBox.hidden = true;
             errorBox.textContent = '';
+        }
+
+        // Valida todos los campos antes de enviar
+        if (!validateEventFormBeforeSubmit(form)) {
+            if (errorBox) {
+                errorBox.textContent = 'Corrige los errores marcados antes de continuar.';
+                errorBox.hidden = false;
+            }
+            // Foco en el primer campo inválido
+            form.querySelector('[aria-invalid="true"]')?.focus();
+            return;
         }
 
         const formData = new FormData(form);
@@ -358,9 +379,21 @@ function initializeGuestForm(root, eventoId) {
     const form = root.querySelector('[data-guest-form]');
     const errorMessage = form.querySelector('[data-form-error]');
 
+    // Aplica validaciones de teclado, pegado y formato al formulario de invitado
+    applyGuestFormValidations(form);
+
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         errorMessage.hidden = true;
+
+        // Valida antes de enviar
+        if (!validateGuestFormBeforeSubmit(form)) {
+            errorMessage.textContent = 'Corrige los errores marcados antes de continuar.';
+            errorMessage.hidden = false;
+            form.querySelector('[aria-invalid="true"]')?.focus();
+            return;
+        }
+
         const formData = new FormData(form);
         const datos = Object.fromEntries(formData.entries());
 

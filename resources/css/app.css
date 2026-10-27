@@ -214,3 +214,28 @@ input:focus, select:focus { border-color: var(--blue-light); box-shadow: 0 0 0 3
     .tabs { grid-template-columns: repeat(2, 1fr); }
     .tab { width: 100%; }
 }
+
+/* ── Validaciones de formulario ─────────────────────────────────────────── */
+
+/** Mensaje de error inline debajo del campo */
+.field-error {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #B4233D;
+    font-weight: 500;
+}
+
+.field-error:empty {
+    display: none;
+}
+
+/** Borde rojo en el campo inválido */
+.input--error,
+input[aria-invalid="true"],
+select[aria-invalid="true"] {
+    border-color: #DC2626 !important;
+    outline-color: #DC2626;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+}

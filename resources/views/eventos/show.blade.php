@@ -32,9 +32,25 @@
         <form class="guest-form panel-card" data-guest-form>
             <h2>Agregar invitado</h2>
             <div class="form-grid">
-                <label>Nombre<input name="nombre" type="text" placeholder="Nombre" maxlength="120" required></label>
-                <label>Correo<input name="correo" type="email" placeholder="correo@ejemplo.com" maxlength="160" required></label>
-                <label>Categoría<select name="categoria" required><option>General</option><option>Familia</option><option>Amigos</option><option>Trabajo</option></select></label>
+                <label>
+                    Nombre
+                    <input name="nombre" type="text" placeholder="Nombre completo"
+                        maxlength="120" required autocomplete="off">
+                </label>
+                <label>
+                    Correo
+                    <input name="correo" type="email" placeholder="correo@ejemplo.com"
+                        maxlength="160" required autocomplete="off">
+                </label>
+                <label>
+                    Categoría
+                    <select name="categoria" required>
+                        <option>General</option>
+                        <option>Familia</option>
+                        <option>Amigos</option>
+                        <option>Trabajo</option>
+                    </select>
+                </label>
             </div>
             <button class="button button--primary" type="submit"><span aria-hidden="true">♧</span> Agregar</button>
             <p class="form-error" data-form-error hidden></p>

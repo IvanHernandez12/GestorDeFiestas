@@ -145,7 +145,10 @@
 
                 <label>
                     <span>Fecha del evento <b class="required">*</b></span>
-                    <input name="fecha_evento" type="date" required value="{{ date('Y-m-d', strtotime('+7 days')) }}">
+                    <input name="fecha_evento" type="date" required
+                        value="{{ date('Y-m-d', strtotime('+7 days')) }}"
+                        min="{{ date('Y-m-d', strtotime('-2 years')) }}"
+                        max="{{ date('Y-m-d', strtotime('+2 years')) }}">
                 </label>
 
                 <label>
@@ -155,12 +158,16 @@
 
                 <label>
                     <span>Número estimado de invitados</span>
-                    <input name="numero_invitados" type="number" min="0" max="10000" placeholder="30" value="30">
+                    <input name="numero_invitados" type="text" inputmode="numeric"
+                        pattern="[0-9]*" placeholder="30" value="30"
+                        autocomplete="off" data-validate-numeric>
                 </label>
 
                 <label>
                     <span>Presupuesto planeado ($ MXN)</span>
-                    <input name="presupuesto" type="number" min="0" step="500" placeholder="100000" value="100000">
+                    <input name="presupuesto" type="text" inputmode="decimal"
+                        pattern="[0-9]*\.?[0-9]*" placeholder="100000" value="100000"
+                        autocomplete="off" data-validate-numeric data-allow-decimal="true">
                 </label>
             </div>
 
@@ -325,59 +332,8 @@ function actualizarDashboard() {
 
 /* ── Intercepción del submit del formulario ── */
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('[data-event-create-form]');
-    if (!form) return;
-
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const errorBox = form.querySelector('[data-event-form-error]');
-        if (errorBox) { errorBox.hidden = true; errorBox.textContent = ''; }
-
-        const formData = new FormData(form);
-        const datos = Object.fromEntries(formData.entries());
-        if (datos.numero_invitados) datos.numero_invitados = parseInt(datos.numero_invitados, 10);
-        if (datos.presupuesto)      datos.presupuesto      = parseFloat(datos.presupuesto);
-
-        const submitBtn = document.getElementById('btn-confirmar-creacion');
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span aria-hidden="true">⏳</span> Registrando…';
-        }
-
-        fetch('{{ url("/api/eventos") }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(datos),
-        })
-        .then(function(r) {
-            if (!r.ok) {
-                return r.json().then(function(body) {
-                    const msg = Object.values(body.errors ?? {}).flat()[0] ?? body.message ?? 'Error al registrar.';
-                    throw new Error(msg);
-                });
-            }
-            return r.json();
-        })
-        .then(function(eventoCreado) {
-            cerrarModalEvento();
-            mostrarConfirmacion(eventoCreado);
-        })
-        .catch(function(err) {
-            if (errorBox) {
-                errorBox.textContent = err.message;
-                errorBox.hidden = false;
-            }
-        })
-        .finally(function() {
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<span aria-hidden="true">＋</span> Guardar y comenzar evento';
-            }
-        });
-    });
-
-    // Cargar dashboard inicial con datos frescos de la API
+    // El submit del formulario es gestionado por el módulo events.js (initializeEventModal).
+    // Este script sólo inicializa el dashboard y maneja el modal de confirmación.
     actualizarDashboard();
 });
 </script>
