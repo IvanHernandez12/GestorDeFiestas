@@ -98,6 +98,41 @@
     </div>
 </div>
 
+<!-- Modal de confirmación para eliminar evento -->
+<div class="modal-backdrop" id="modal-eliminar-backdrop" data-delete-modal hidden onclick="if(event.target === this) cerrarModalEliminar()">
+    <div class="modal-dialog panel-card" role="dialog" aria-modal="true" aria-labelledby="modal-eliminar-titulo" style="max-width:480px;">
+        <header class="modal-header">
+            <div>
+                <span class="hero-kicker modal-kicker" style="color:#DC2626;border-color:#FCA5A5;background:#FEF2F2;">
+                    <span aria-hidden="true">⚠️</span> Confirmar eliminación
+                </span>
+                <h2 id="modal-eliminar-titulo" style="margin-top:8px;color:#991B1B;">¿Eliminar este evento?</h2>
+                <p class="muted">Esta acción es permanente y no se puede deshacer.</p>
+            </div>
+            <button type="button" class="modal-close" onclick="cerrarModalEliminar()" aria-label="Cerrar">✕</button>
+        </header>
+
+        <div style="padding:10px 0 16px;">
+            <p style="margin:0 0 10px;font-size:13px;color:#374151;line-height:1.5;">
+                Estás a punto de borrar del sistema el evento:
+            </p>
+            <div style="padding:12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;">
+                <strong id="delete-modal-event-title" style="font-size:15px;color:#0F172A;">Nombre del evento</strong>
+            </div>
+            <p style="margin:12px 0 0;font-size:12px;color:#64748B;">
+                Se borrarán también todos los invitados y configuraciones asociadas de la base de datos.
+            </p>
+        </div>
+
+        <footer class="modal-footer">
+            <button type="button" class="button button--secondary" onclick="cerrarModalEliminar()">Cancelar</button>
+            <button type="button" class="button button--danger" id="btn-confirmar-eliminar">
+                <span aria-hidden="true">🗑</span> Sí, eliminar evento
+            </button>
+        </footer>
+    </div>
+</div>
+
 <!-- Modal emergente para dar de alta un evento -->
 <div class="modal-backdrop" id="modal-evento-backdrop" data-event-modal hidden onclick="if(event.target === this) cerrarModalEvento()">
     <div class="modal-dialog panel-card" role="dialog" aria-modal="true" aria-labelledby="modal-evento-titulo">
@@ -322,6 +357,13 @@ function actualizarDashboard() {
                 if (budget) budget.textContent = fmtDinero(evento.presupuesto);
                 card.querySelector('[data-event-folio]').textContent    = 'Folio ' + evento.folio;
                 card.querySelector('[data-event-detail]').href          = '/eventos/' + evento.id;
+
+                const delBtn = card.querySelector('[data-delete-event]');
+                if (delBtn) {
+                    delBtn.setAttribute('data-delete-event', evento.id);
+                    delBtn.setAttribute('data-event-name', evento.nombre);
+                }
+
                 container.append(card);
             });
         })
@@ -329,6 +371,78 @@ function actualizarDashboard() {
             // Si falla el fetch, dejamos las tarjetas actuales sin cambio
         });
 }
+
+/* ── Modal de eliminación de eventos ── */
+var eventoIdAEliminar = null;
+
+function abrirModalEliminar(id, nombre) {
+    eventoIdAEliminar = id;
+    const modal = document.getElementById('modal-eliminar-backdrop');
+    const title = document.getElementById('delete-modal-event-title');
+    if (title) title.textContent = nombre || 'este evento';
+    if (modal) {
+        modal.removeAttribute('hidden');
+        modal.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function cerrarModalEliminar() {
+    eventoIdAEliminar = null;
+    const modal = document.getElementById('modal-eliminar-backdrop');
+    if (modal) {
+        modal.setAttribute('hidden', '');
+        modal.classList.remove('is-open');
+        document.body.style.overflow = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Delegación global para botones de eliminación en tarjetas
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('[data-delete-event]');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = btn.getAttribute('data-delete-event');
+            const name = btn.getAttribute('data-event-name');
+            abrirModalEliminar(id, name);
+        }
+    });
+
+    const btnConfirmarEliminar = document.getElementById('btn-confirmar-eliminar');
+    if (btnConfirmarEliminar) {
+        btnConfirmarEliminar.addEventListener('click', function() {
+            if (!eventoIdAEliminar) return;
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<span aria-hidden="true">⏳</span> Eliminando…';
+
+            fetch('/api/eventos/' + eventoIdAEliminar, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .then(function(r) {
+                if (!r.ok && r.status !== 204) {
+                    throw new Error('No se pudo eliminar el evento.');
+                }
+                cerrarModalEliminar();
+                actualizarDashboard();
+            })
+            .catch(function(err) {
+                alert(err.message || 'Error al eliminar el evento.');
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<span aria-hidden="true">🗑</span> Sí, eliminar evento';
+            });
+        });
+    }
+});
 
 /* ─────────────────────────────────────────────────────────────
    Validaciones de formulario (inline — sin dependencia del módulo JS)
