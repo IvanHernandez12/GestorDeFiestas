@@ -7,7 +7,7 @@
  * @descripción Presenta el formulario de inicio de sesión web.
  */
 
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 
 const form = useForm({
     email: '',
@@ -55,6 +55,11 @@ function submit() {
                         <svg v-if="!form.processing" class="size-4" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
                     </button>
                 </form>
+
+                <p class="mt-6 text-center text-sm text-slate-500">
+                    ¿No tienes cuenta?
+                    <Link href="/register" class="font-semibold text-blue-600 transition hover:text-blue-700">Regístrate aquí</Link>
+                </p>
             </section>
 
             <p class="mt-6 text-center text-xs text-slate-500">Bigbitbyte · Gestor de eventos</p>

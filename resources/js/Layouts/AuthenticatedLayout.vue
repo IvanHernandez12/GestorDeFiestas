@@ -48,6 +48,11 @@ function logOut() {
                         class="rounded-xl px-4 py-2.5 text-sm font-semibold transition"
                         :class="isActive('/events/create') ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'"
                     >Crear evento</Link>
+                    <Link
+                        href="/plans"
+                        class="rounded-xl px-4 py-2.5 text-sm font-semibold transition"
+                        :class="isActive('/plans') ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'"
+                    >Planes</Link>
                 </nav>
 
                 <div class="relative flex shrink-0 items-center gap-2">

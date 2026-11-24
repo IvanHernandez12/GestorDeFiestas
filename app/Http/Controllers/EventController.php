@@ -67,6 +67,7 @@ class EventController extends Controller
             'guest_categories' => ['sometimes', 'array', 'min:1', 'max:255'],
             'guest_categories.*.name' => ['required', 'string', 'max:100'],
             'guest_categories.*.guest_count' => ['required', 'integer', 'min:0', 'max:100000'],
+            'guest_categories.*.priority' => ['sometimes', 'integer', 'min:1', 'max:255', 'distinct'],
         ], [
             'event_date.after_or_equal' => 'La fecha debe ser al menos 15 días después de hoy',
         ]);
@@ -97,7 +98,7 @@ class EventController extends Controller
                 $event->guestCategories()->create([
                     'name' => $guestCategory['name'],
                     'guest_count' => $guestCategory['guest_count'],
-                    'priority' => $index + 1,
+                    'priority' => $guestCategory['priority'] ?? $index + 1,
                 ]);
             }
 

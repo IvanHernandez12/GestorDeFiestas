@@ -34,7 +34,7 @@ function formatCurrency(value) {
     return new Intl.NumberFormat('es-MX', {
         style: 'currency',
         currency: 'MXN',
-        maximumFractionDigits: 0,
+        maximumFractionDigits: 2,
     }).format(Number(value ?? 0));
 }
 
@@ -99,7 +99,7 @@ async function confirmPackage(packageOption) {
     errorMessage.value = '';
 
     try {
-        const response = await fetch(`/api/events/${props.event.id}/packages/${packageOption.id}/confirm`, {
+        const response = await fetch('/api/payments/create-preference', {
             method: 'POST',
             credentials: 'same-origin',
             headers: {
@@ -108,7 +108,11 @@ async function confirmPackage(packageOption) {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-XSRF-TOKEN': getXsrfToken(),
             },
-            body: JSON.stringify({ provider_ids: packageOption.selectedProviderIds }),
+            body: JSON.stringify({
+                event_id: props.event.id,
+                package_id: packageOption.id,
+                provider_ids: packageOption.selectedProviderIds,
+            }),
         });
 
         const responseData = await response.json().catch(() => ({}));
@@ -128,10 +132,14 @@ async function confirmPackage(packageOption) {
         }
 
         if (!response.ok) {
-            throw new Error(responseData.message ?? 'No fue posible confirmar el paquete.');
+            throw new Error(responseData.message ?? 'No fue posible iniciar el pago.');
         }
 
-        router.visit('/events');
+        if (!responseData.init_point) {
+            throw new Error('MercadoPago no devolvió el enlace de pago de prueba.');
+        }
+
+        window.location.assign(responseData.init_point);
     } catch (error) {
         errorMessage.value = error.message || 'Ocurrió un problema de conexión.';
     } finally {
@@ -198,16 +206,17 @@ onMounted(loadPackages);
 
                     <div class="mt-auto flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 pt-5">
                         <div>
-                            <p class="text-xs font-semibold text-slate-500">Total del paquete</p>
+                            <p class="text-xs font-semibold text-slate-500">Precio real de referencia</p>
                             <p class="mt-1 text-2xl font-bold tracking-tight text-slate-950">{{ formatCurrency(packageTotal(packageOption)) }}</p>
+                            <p class="mt-1 text-xs font-medium text-blue-700">Para pruebas, se cobrará $1 MXN</p>
                         </div>
                         <button
                             type="button"
-                            :disabled="confirmingPackageId !== null || packageTotal(packageOption) > availableBudget"
+                            :disabled="confirmingPackageId !== null || !packageOption.selectedProviderIds.length || packageTotal(packageOption) > availableBudget"
                             class="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300"
                             @click="confirmPackage(packageOption)"
                         >
-                            {{ confirmingPackageId === packageOption.id ? 'Confirmando…' : 'Confirmar paquete' }}
+                            {{ confirmingPackageId === packageOption.id ? 'Preparando pago…' : 'Pagar $1 MXN' }}
                         </button>
                     </div>
                 </article>

@@ -16,6 +16,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\EventPackageController;
 use App\Http\Controllers\GuestController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\VenueController;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +28,16 @@ Route::prefix('auth')->controller(AuthController::class)->group(function (): voi
     Route::post('/login', 'login')->middleware('throttle:6,1')->name('auth.login');
     Route::post('/logout', 'logout')->middleware('auth:sanctum')->name('auth.logout');
 });
+
+Route::post('/register', [AuthController::class, 'register'])
+    ->middleware('throttle:6,1')
+    ->name('api.register');
+
+Route::post('/payments/webhook', [PaymentController::class, 'webhook'])
+    ->name('payments.webhook');
+Route::post('/payments/create-preference', [PaymentController::class, 'createPreference'])
+    ->middleware('auth:sanctum')
+    ->name('payments.create-preference');
 
 Route::get('/venues/search', [VenueController::class, 'search'])->name('venues.search');
 Route::get('/public/guest/{qr_token}', [PublicGuestController::class, 'show'])

@@ -31,6 +31,14 @@ class WebAuthController extends Controller
     }
 
     /**
+     * Muestra el formulario de registro.
+     */
+    public function createRegistration(): Response
+    {
+        return Inertia::render('Auth/Register');
+    }
+
+    /**
      * Verifica las credenciales e inicia una sesión web.
      */
     public function store(Request $request): RedirectResponse

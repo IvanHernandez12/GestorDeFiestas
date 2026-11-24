@@ -24,6 +24,62 @@ class EventCategoriesTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_valid_priorities_are_saved_with_event_categories(): void
+    {
+        $plan = Plan::query()->create([
+            'name' => 'Gratuito',
+            'slug' => 'free',
+            'price' => 0,
+            'max_events' => 1,
+            'max_guests' => 50,
+            'is_free' => true,
+        ]);
+        $user = User::factory()->for($plan)->create();
+        $venue = Venue::query()->create([
+            'name' => 'Jardín de Prueba',
+            'address' => 'Toluca, Estado de México',
+            'lat' => 19.2826,
+            'lng' => -99.6557,
+            'capacity' => 100,
+            'min_price' => 7000,
+            'max_price' => 25000,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/events', [
+            'name' => 'Evento con prioridades',
+            'category' => 'Boda',
+            'event_date' => '2027-05-10',
+            'guest_count' => 10,
+            'total_budget' => 40000,
+            'venue_id' => $venue->id,
+            'rules' => 'Confirmar asistencia.',
+            'guest_categories' => [
+                ['name' => 'Familia', 'guest_count' => 5, 'priority' => 4],
+                ['name' => 'Amistades', 'guest_count' => 5, 'priority' => 2],
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('rules', 'Confirmar asistencia.')
+            ->assertJsonPath('guest_categories.0.priority', 4)
+            ->assertJsonPath('guest_categories.1.priority', 2);
+
+        $eventId = $response->json('id');
+        $this->assertDatabaseHas('events', ['id' => $eventId, 'venue_id' => $venue->id]);
+        $this->assertDatabaseHas('guest_categories', [
+            'event_id' => $eventId,
+            'name' => 'Familia',
+            'guest_count' => 5,
+            'priority' => 4,
+        ]);
+        $this->assertDatabaseHas('guest_categories', [
+            'event_id' => $eventId,
+            'name' => 'Amistades',
+            'guest_count' => 5,
+            'priority' => 2,
+        ]);
+    }
+
     public function test_valid_payload_saves_rules_categories_and_distributed_tables(): void
     {
         $plan = Plan::query()->create([

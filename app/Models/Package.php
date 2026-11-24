@@ -21,7 +21,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Package extends Model
 {
     /** @var list<string> */
-    protected $fillable = ['event_id', 'category', 'name', 'description', 'estimated_price'];
+    protected $fillable = [
+        'event_id',
+        'category',
+        'name',
+        'description',
+        'estimated_price',
+        'is_paid',
+        'payment_reference',
+        'mercadopago_preference_id',
+        'mercadopago_payment_id',
+    ];
 
     /** @return BelongsTo<Event, $this> */
     public function event(): BelongsTo
@@ -38,6 +48,9 @@ class Package extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['estimated_price' => 'decimal:2'];
+        return [
+            'estimated_price' => 'decimal:2',
+            'is_paid' => 'boolean',
+        ];
     }
 }

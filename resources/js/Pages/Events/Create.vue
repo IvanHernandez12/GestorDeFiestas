@@ -27,8 +27,8 @@ const form = reactive({
 });
 
 const guestCategories = ref([
-    { name: 'Categoría 1', guest_count: 0 },
-    { name: 'Categoría 2', guest_count: 0 },
+    { name: 'Categoría 1', guest_count: 0, priority: 1 },
+    { name: 'Categoría 2', guest_count: 0, priority: 2 },
 ]);
 const venueSearch = ref('');
 const venues = ref([]);
@@ -60,6 +60,7 @@ function addGuestCategory() {
     guestCategories.value.push({
         name: `Categoría ${guestCategories.value.length + 1}`,
         guest_count: 0,
+        priority: guestCategories.value.length + 1,
     });
 }
 
@@ -197,7 +198,7 @@ async function submitEvent() {
     try {
         const response = await fetch('/api/events', {
             method: 'POST',
-            credentials: 'same-origin',
+            credentials: 'include',
             headers: {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
@@ -205,13 +206,17 @@ async function submitEvent() {
                 'X-XSRF-TOKEN': getXsrfToken(),
             },
             body: JSON.stringify({
-                ...form,
+                name: form.name.trim(),
+                category: form.category,
+                event_date: form.event_date,
                 guest_count: Number(form.guest_count),
                 total_budget: Number(form.total_budget),
+                rules: form.rules.trim() || null,
                 venue_id: Number(form.venue_id),
                 guest_categories: guestCategories.value.map((category) => ({
-                    name: category.name,
+                    name: category.name.trim(),
                     guest_count: Number(category.guest_count || 0),
+                    priority: Number(category.priority),
                 })),
             }),
         });
@@ -236,7 +241,17 @@ async function submitEvent() {
             return;
         }
 
-        router.visit(`/events/${responseData.id}/packages`);
+        if (!Number.isInteger(responseData.id)) {
+            errorMessage.value = 'El evento se creó, pero no recibimos su identificador. Revisa Mis eventos antes de volver a intentarlo.';
+
+            return;
+        }
+
+        router.visit(`/events/${responseData.id}/packages`, {
+            onError: () => {
+                errorMessage.value = 'El evento se guardó, pero no fue posible abrir la selección de paquetes.';
+            },
+        });
     } catch {
         errorMessage.value = 'Ocurrió un problema de conexión. Intenta de nuevo.';
     } finally {
@@ -400,8 +415,13 @@ onMounted(initializeMap);
                         </span>
                     </div>
                     <p v-if="errors.guest_categories" class="mt-2 text-xs font-medium text-rose-600">{{ errors.guest_categories[0] }}</p>
-                    <p v-else-if="Number(form.guest_count) > 0 && !categoriesFitGuestCount" class="mt-2 text-xs text-rose-600">La suma de las categorías no puede exceder el total de invitados.</p>
-                    <p v-else-if="remainingGuestCount > 0" class="mt-2 text-xs text-slate-500">{{ remainingGuestCount }} invitados restantes se agregarán a Categoría General.</p>
+                    <template v-for="(message, field) in errors" :key="field">
+                        <p v-if="field.startsWith('guest_categories.') && field !== 'guest_categories'" class="mt-2 text-xs font-medium text-rose-600">
+                            {{ message[0] }}
+                        </p>
+                    </template>
+                    <p v-if="!errors.guest_categories && Number(form.guest_count) > 0 && !categoriesFitGuestCount" class="mt-2 text-xs text-rose-600">La suma de las categorías no puede exceder el total de invitados.</p>
+                    <p v-if="!errors.guest_categories && categoriesFitGuestCount && remainingGuestCount > 0" class="mt-2 text-xs text-slate-500">{{ remainingGuestCount }} invitados restantes se agregarán a Categoría General.</p>
                 </section>
                 </div>
 
