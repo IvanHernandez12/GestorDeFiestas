@@ -7,9 +7,9 @@
  *
  * @creado 20/noviembre/2026
  *
- * @modificado 24/noviembre/2026
+ * @modificado 25/noviembre/2026
  *
- * @descripción Verifica el endpoint público de invitaciones por token QR.
+ * @descripción Verifica el endpoint público de invitaciones y sillas reservadas por token QR.
  */
 
 namespace Tests\Feature;
@@ -58,11 +58,27 @@ class PublicGuestControllerTest extends TestCase
             'category_id' => $category->id,
             'qr_token' => (string) Str::uuid(),
         ]);
+        $table = $event->tables()->create([
+            'table_number' => 3,
+            'capacity' => 8,
+            'shape' => 'round',
+            'width' => 76,
+            'height' => 76,
+            'position_x' => 200,
+            'position_y' => 300,
+        ]);
+        $guest->update(['table_id' => $table->id, 'seat_number' => 4]);
 
         $this->getJson("/api/public/guest/{$guest->qr_token}")
             ->assertOk()
             ->assertJsonPath('guest.name', 'Ana Pérez')
             ->assertJsonPath('guest.category', 'Familia')
+            ->assertJsonPath('guest.invitation_status', 'pending')
+            ->assertJsonPath('guest.invitation_status_label', 'pendiente')
+            ->assertJsonPath('reservation.table_number', 3)
+            ->assertJsonPath('reservation.seat_number', 4)
+            ->assertJsonPath('reservation.table.shape', 'round')
+            ->assertJsonPath('reservation.table.position_x', 200)
             ->assertJsonPath('event.name', 'Boda de prueba')
             ->assertJsonPath('event.date', '2026-12-12')
             ->assertJsonPath('event.rules', 'No se admiten niños.')
@@ -78,5 +94,68 @@ class PublicGuestControllerTest extends TestCase
         $this->getJson('/api/public/guest/'.Str::uuid())
             ->assertNotFound()
             ->assertJsonPath('message', 'Invitación no encontrada');
+    }
+
+    public function test_public_event_uuid_returns_event_details_without_authentication(): void
+    {
+        $user = User::factory()->create();
+        $event = $user->events()->create([
+            'name' => 'Boda de prueba',
+            'category' => 'Boda',
+            'event_date' => '2026-12-12',
+            'guest_count' => 40,
+            'total_budget' => 40000,
+            'public_uuid' => (string) Str::uuid(),
+        ]);
+        $event->guestCategories()->create([
+            'name' => 'Familia',
+            'guest_count' => 40,
+            'priority' => 1,
+        ]);
+        $event->eventSpaces()->create([
+            'name' => 'Bar',
+            'type' => 'bar',
+            'width' => 180,
+            'height' => 90,
+            'position_x' => 100,
+            'position_y' => 200,
+        ]);
+
+        $this->getJson('/api/public/events/'.strtoupper($event->public_uuid))
+            ->assertOk()
+            ->assertJsonPath('event.id', $event->id)
+            ->assertJsonPath('event.public_uuid', $event->public_uuid)
+            ->assertJsonPath('event.name', 'Boda de prueba')
+            ->assertJsonPath('spaces.0.type', 'bar')
+            ->assertJsonPath('spaces.0.position_x', 100)
+            ->assertJsonPath('guest_categories.0.name', 'Familia');
+    }
+
+    public function test_public_token_returns_null_reservation_when_guest_has_no_assigned_seat(): void
+    {
+        $user = User::factory()->create();
+        $event = $user->events()->create([
+            'name' => 'Boda sin sillas',
+            'category' => 'Boda',
+            'event_date' => '2026-12-12',
+            'guest_count' => 10,
+            'total_budget' => 10000,
+            'public_uuid' => (string) Str::uuid(),
+        ]);
+        $category = $event->guestCategories()->create([
+            'name' => 'Amigos',
+            'guest_count' => 10,
+            'priority' => 2,
+        ]);
+        $guest = $event->guests()->create([
+            'name' => 'Ana Pérez',
+            'email' => null,
+            'category_id' => $category->id,
+            'qr_token' => (string) Str::uuid(),
+        ]);
+
+        $this->getJson("/api/public/guest/{$guest->qr_token}")
+            ->assertOk()
+            ->assertJsonPath('reservation', null);
     }
 }

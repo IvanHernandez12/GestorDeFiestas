@@ -7,14 +7,16 @@
  *
  * @creado 13/noviembre/2026
  *
- * @modificado 24/noviembre/2026
+ * @modificado 25/noviembre/2026
  *
  * @descripción Define las rutas web de autenticación y administración de eventos.
  */
 
+use App\Http\Controllers\EventSpaceController;
 use App\Http\Controllers\EventWebController;
 use App\Http\Controllers\PaymentSimulationController;
 use App\Http\Controllers\PlanController;
+use App\Http\Controllers\PublicGuestController;
 use App\Http\Controllers\WebAuthController;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +24,13 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function (): RedirectResponse {
     return to_route(auth()->check() ? 'web.events.index' : 'login');
 });
+
+Route::get('/invitacion/{qr_token}', [PublicGuestController::class, 'invitation'])
+    ->whereUuid('qr_token')
+    ->name('public.invitations.show');
+Route::get('/invitacion/categoria/{public_uuid}', [PublicGuestController::class, 'categoryInvitation'])
+    ->whereUuid('public_uuid')
+    ->name('public.invitations.category');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [WebAuthController::class, 'create'])->name('login');
@@ -55,4 +64,22 @@ Route::middleware('auth')->group(function (): void {
     Route::patch('/events/{eventId}/tables/{tableId}/position', [EventWebController::class, 'updateTablePosition'])
         ->whereNumber(['eventId', 'tableId'])
         ->name('web.events.tables.position');
+    Route::post('/events/{eventId}/tables', [EventWebController::class, 'storeTable'])
+        ->whereNumber('eventId')
+        ->name('web.events.tables.store');
+    Route::patch('/events/{eventId}/tables/{tableId}', [EventWebController::class, 'updateTable'])
+        ->whereNumber(['eventId', 'tableId'])
+        ->name('web.events.tables.update');
+    Route::delete('/events/{eventId}/tables/{tableId}', [EventWebController::class, 'destroyTable'])
+        ->whereNumber(['eventId', 'tableId'])
+        ->name('web.events.tables.destroy');
+    Route::post('/events/{eventId}/spaces', [EventSpaceController::class, 'store'])
+        ->whereNumber('eventId')
+        ->name('web.events.spaces.store');
+    Route::patch('/events/{eventId}/spaces/{spaceId}', [EventSpaceController::class, 'update'])
+        ->whereNumber(['eventId', 'spaceId'])
+        ->name('web.events.spaces.update');
+    Route::delete('/events/{eventId}/spaces/{spaceId}', [EventSpaceController::class, 'destroy'])
+        ->whereNumber(['eventId', 'spaceId'])
+        ->name('web.events.spaces.destroy');
 });

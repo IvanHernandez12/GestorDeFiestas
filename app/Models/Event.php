@@ -7,7 +7,7 @@
  *
  * @creado 13/noviembre/2026
  *
- * @modificado 24/noviembre/2026
+ * @modificado 25/noviembre/2026
  *
  * @descripción Representa un evento creado por un usuario.
  */
@@ -45,6 +45,12 @@ class Event extends Model
     public function guests(): HasMany
     {
         return $this->hasMany(Guest::class);
+    }
+
+    /** @return HasMany<EventSpace, $this> */
+    public function eventSpaces(): HasMany
+    {
+        return $this->hasMany(EventSpace::class);
     }
 
     /** @return HasMany<Table, $this> */

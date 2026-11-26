@@ -29,8 +29,11 @@ class BudgetService
 
         $totalBudgetInCents = (int) round((float) $event->total_budget * 100);
         $venueMinimumInCents = (int) round((float) ($event->venue?->min_price ?? 0) * 100);
+        $paidPackagesInCents = (int) round(
+            (float) $event->packages()->where('is_paid', true)->sum('estimated_price') * 100
+        );
 
-        return max(0, $totalBudgetInCents - $venueMinimumInCents) / 100;
+        return max(0, $totalBudgetInCents - $venueMinimumInCents - $paidPackagesInCents) / 100;
     }
 
     /**

@@ -7,7 +7,7 @@
  *
  * @creado 13/noviembre/2026
  *
- * @modificado 24/noviembre/2026
+ * @modificado 26/noviembre/2026
  *
  * @descripción Distribuye invitados por categoría en mesas de hasta ocho lugares.
  */
@@ -18,6 +18,7 @@ use App\Models\Event;
 use App\Models\Table;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class TableDistributionService
@@ -30,6 +31,8 @@ class TableDistributionService
     public function distribute(Event $event): Collection
     {
         return DB::transaction(function () use ($event): Collection {
+            $event = Event::query()->whereKey($event->id)->lockForUpdate()->firstOrFail();
+            $event->guests()->update(['table_id' => null, 'seat_number' => null]);
             $event->tables()->delete();
 
             $tables = new Collection;
@@ -47,11 +50,18 @@ class TableDistributionService
             $remainingGuestCount = $event->guest_count - $assignedGuestCount;
 
             if ($remainingGuestCount > 0) {
-                $categories->push($event->guestCategories()->create([
-                    'name' => 'Categoría General',
+                $generalCategory = $event->guestCategories()->firstOrNew(['name' => 'Categoría General']);
+
+                if (! $generalCategory->public_uuid) {
+                    $generalCategory->public_uuid = (string) Str::uuid();
+                }
+
+                $generalCategory->fill([
                     'guest_count' => $remainingGuestCount,
                     'priority' => ((int) $categories->max('priority')) + 1,
-                ]));
+                ]);
+                $generalCategory->save();
+                $categories->push($generalCategory);
             }
 
             foreach ($categories as $category) {

@@ -15,12 +15,18 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\PlanLimitService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class CheckPlanLimits
 {
+    /**
+     * Crea el middleware con el servicio de límites inyectado.
+     */
+    public function __construct(private PlanLimitService $planLimitService) {}
+
     /**
      * Detiene solicitudes que excedan los límites configurados del plan gratuito.
      *
@@ -34,25 +40,10 @@ class CheckPlanLimits
             return response()->json(['message' => 'No autenticado.'], 401);
         }
 
-        $plan = $user->plan;
+        $error = $this->planLimitService->eventCreationError($user, $request->integer('guest_count'));
 
-        if ($plan !== null && ! $plan->is_free) {
-            return $next($request);
-        }
-
-        $maximumEvents = $plan?->max_events ?? 1;
-        $maximumGuests = $plan?->max_guests ?? 50;
-
-        if ($user->events()->count() >= $maximumEvents) {
-            return response()->json([
-                'message' => 'Has alcanzado el límite de tu plan gratuito: solo puedes crear 1 evento.',
-            ], 403);
-        }
-
-        if ($request->integer('guest_count') > $maximumGuests) {
-            return response()->json([
-                'message' => 'Has alcanzado el límite de tu plan gratuito: máximo 50 invitados por evento.',
-            ], 403);
+        if ($error !== null) {
+            return response()->json(['message' => $error], 403);
         }
 
         return $next($request);

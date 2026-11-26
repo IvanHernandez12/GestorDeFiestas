@@ -6,6 +6,7 @@ import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout.vue';
 const props = defineProps({
     type: { type: String, required: true },
     id: { type: Number, required: true },
+    token: { type: String, required: true },
     title: { type: String, required: true },
     referenceAmount: { type: Number, required: true },
     chargeAmount: { type: Number, required: true },
@@ -30,7 +31,7 @@ function confirmPayment() {
     isConfirming.value = true;
     errorMessage.value = '';
 
-    router.post('/simulate-payment/confirm', { type: props.type, id: props.id }, {
+    router.post('/simulate-payment/confirm', { type: props.type, id: props.id, token: props.token }, {
         onError: (errors) => {
             errorMessage.value = Object.values(errors)[0] ?? 'No fue posible confirmar el pago simulado.';
         },

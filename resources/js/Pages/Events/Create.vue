@@ -35,6 +35,7 @@ const venues = ref([]);
 const selectedVenue = ref(null);
 const isSearching = ref(false);
 const isSubmitting = ref(false);
+const hasCreatedEvent = ref(false);
 const errors = ref({});
 const errorMessage = ref('');
 const searchError = ref('');
@@ -187,7 +188,7 @@ async function initializeMap() {
 }
 
 async function submitEvent() {
-    if (isSubmitting.value) {
+    if (isSubmitting.value || hasCreatedEvent.value) {
         return;
     }
 
@@ -241,8 +242,10 @@ async function submitEvent() {
             return;
         }
 
+        hasCreatedEvent.value = true;
+
         if (!Number.isInteger(responseData.id)) {
-            errorMessage.value = 'El evento se creó, pero no recibimos su identificador. Revisa Mis eventos antes de volver a intentarlo.';
+            errorMessage.value = 'El evento se creó, pero no recibimos su identificador. Revisa Mis eventos en lugar de volver a enviar el formulario.';
 
             return;
         }
@@ -274,6 +277,9 @@ watch(() => form.guest_count, (guestCount) => {
 onBeforeUnmount(() => {
     window.clearTimeout(searchTimer);
     searchController?.abort();
+    mapMarker?.setMap(null);
+    mapMarker = null;
+    mapInstance.value = null;
 });
 
 onMounted(initializeMap);
@@ -494,7 +500,7 @@ onMounted(initializeMap);
 
                     <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                         <Link href="/events" class="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50">Cancelar</Link>
-                        <button type="submit" :disabled="isSubmitting || !selectedVenue || !categoriesFitGuestCount" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-500 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
+                        <button type="submit" :disabled="isSubmitting || hasCreatedEvent || !selectedVenue || !categoriesFitGuestCount" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-500 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
                             <svg v-if="isSubmitting" class="size-4 animate-spin" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-opacity=".3" stroke-width="2" /><path d="M17 10a7 7 0 0 0-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
                             {{ isSubmitting ? 'Creando evento…' : 'Crear evento' }}
                         </button>

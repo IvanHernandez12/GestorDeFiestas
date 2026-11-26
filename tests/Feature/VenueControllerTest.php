@@ -131,7 +131,7 @@ test('matches the search term against venue name or address', function (): void 
         ->assertJsonFragment(['name' => 'Metepec Eventos']);
 });
 
-test('replaces venue seed data with the ten requested venues', function (): void {
+test('keeps venues not present in the seeder when seeding the ten requested venues', function (): void {
     Venue::query()->create([
         'name' => 'Salón Antiguo',
         'address' => 'Toluca, Estado de México',
@@ -144,12 +144,12 @@ test('replaces venue seed data with the ten requested venues', function (): void
 
     $this->seed(VenueSeeder::class);
 
-    expect(Venue::query()->count())->toBe(10);
+    expect(Venue::query()->count())->toBe(11);
     $this->assertDatabaseHas('venues', [
         'name' => 'Salon Altezz',
         'capacity' => 180,
         'min_price' => 28000,
         'max_price' => 28000,
     ]);
-    $this->assertDatabaseMissing('venues', ['name' => 'Salón Antiguo']);
+    $this->assertDatabaseHas('venues', ['name' => 'Salón Antiguo']);
 });

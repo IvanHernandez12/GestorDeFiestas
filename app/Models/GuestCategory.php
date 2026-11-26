@@ -7,9 +7,9 @@
  *
  * @creado 13/noviembre/2026
  *
- * @modificado 24/noviembre/2026
+ * @modificado 26/noviembre/2026
  *
- * @descripción Representa una categoría priorizada de invitados.
+ * @descripción Representa una categoría priorizada de invitados con invitación grupal.
  */
 
 namespace App\Models;
@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class GuestCategory extends Model
 {
     /** @var list<string> */
-    protected $fillable = ['event_id', 'name', 'guest_count', 'priority'];
+    protected $fillable = ['event_id', 'name', 'guest_count', 'priority', 'public_uuid'];
 
     /** @return BelongsTo<Event, $this> */
     public function event(): BelongsTo

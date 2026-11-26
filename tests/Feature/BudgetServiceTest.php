@@ -115,3 +115,29 @@ test('suggests only same-type packages within the available budget', function ()
 
     expect($suggestedPackages->modelKeys())->toBe([$matchingPackage->id]);
 });
+
+test('subtracts paid packages from the available budget', function (): void {
+    $user = User::factory()->create();
+    $event = $user->events()->create([
+        'name' => 'Evento con paquete pagado',
+        'category' => 'Boda',
+        'event_date' => '2027-05-10',
+        'guest_count' => 100,
+        'total_budget' => 60000,
+        'public_uuid' => (string) Str::uuid(),
+    ]);
+    $event->packages()->create([
+        'category' => 'Boda',
+        'name' => 'Paquete pagado',
+        'estimated_price' => 15000,
+        'is_paid' => true,
+    ]);
+    $event->packages()->create([
+        'category' => 'Boda',
+        'name' => 'Paquete pendiente',
+        'estimated_price' => 20000,
+        'is_paid' => false,
+    ]);
+
+    expect(app(BudgetService::class)->calculateAvailableBudget($event))->toBe(45000.0);
+});

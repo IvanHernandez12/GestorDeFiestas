@@ -3,11 +3,11 @@
  * @empresa Bigbitbyte
  * @autor Ivan Hernandez Hinojosa
  * @creado 24/noviembre/2026
- * @modificado 24/noviembre/2026
+ * @modificado 26/noviembre/2026
  * @descripción Muestra el detalle del evento y sus pestañas de gestión.
  */
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import QrcodeVue from 'qrcode.vue';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout.vue';
@@ -20,21 +20,56 @@ const props = defineProps({
     },
 });
 
+const editableTables = ref([...(props.event.tables ?? [])]);
+const editableSpaces = ref([...(props.event.eventSpaces ?? [])]);
+
+watch(
+    () => props.event.tables,
+    (tables) => {
+        editableTables.value = [...(tables ?? [])];
+    },
+);
+
+watch(
+    () => props.event.eventSpaces,
+    (spaces) => {
+        editableSpaces.value = [...(spaces ?? [])];
+    },
+);
+
 const tabs = ['Invitados', 'Salón', 'QR', 'Seguimiento', 'Evento', 'Info'];
 const activeTab = ref('Salón');
 const guests = ref([]);
 const selectedGuest = ref(null);
 const isLoadingGuests = ref(false);
+const isAddingGuest = ref(false);
 const guestSuccess = ref('');
 const guestError = ref('');
+const invitationSuccess = ref('');
+const invitationError = ref('');
+const isSendingInvitation = ref(false);
+const invitationQrRef = ref(null);
 const photos = ref([]);
 const guestForm = ref({ name: '', email: '', category_id: '' });
 const photoInput = ref(null);
 
-const guestCategories = computed(() => props.event.guest_categories ?? []);
+const guestCategories = computed(() => props.event.guestCategories ?? []);
+const guestCountsByCategory = computed(() => guests.value.reduce((counts, guest) => {
+    const categoryId = guest.category_id;
+
+    counts[categoryId] = (counts[categoryId] ?? 0) + 1;
+
+    return counts;
+}, {}));
 const selectedGuestQrValue = computed(() => selectedGuest.value?.qr_token ?? '');
+const invitationUrl = computed(() => selectedGuest.value
+    ? `${window.location.origin}/invitacion/${selectedGuest.value.qr_token}`
+    : '');
+const eventQrValue = computed(() => props.event.public_uuid ?? `EVT-${props.event.id}`);
 const providerList = computed(() => {
-    const eventProviders = (props.event.packages ?? []).flatMap((packageOption) => packageOption.providers ?? []);
+    const eventProviders = (props.event.packages ?? [])
+        .filter((packageOption) => packageOption.is_paid)
+        .flatMap((packageOption) => packageOption.providers ?? []);
 
     if (eventProviders.length) {
         return eventProviders.map((provider) => ({
@@ -72,6 +107,32 @@ function formatCurrency(value) {
     }).format(Number(value ?? 0));
 }
 
+function isCategoryFull(category) {
+    return (guestCountsByCategory.value[category.id] ?? 0) >= Number(category.guest_count ?? 0);
+}
+
+function statusLabel(status) {
+    return {
+        pending: 'pendiente',
+        confirmed: 'confirmo asistencia',
+        rejected: 'rechazo invitación',
+    }[status] ?? 'pendiente';
+}
+
+function categoryQrValue(category) {
+    return category.public_uuid
+        ? `${window.location.origin}/invitacion/categoria/${category.public_uuid}`
+        : '';
+}
+
+function guestsForCategory(categoryId) {
+    return guests.value.filter((guest) => guest.category_id === categoryId);
+}
+
+function categoryStatusCount(categoryId, status) {
+    return guestsForCategory(categoryId).filter((guest) => (guest.invitation_status ?? 'pending') === status).length;
+}
+
 function getXsrfToken() {
     const xsrfCookie = document.cookie.split('; ').find((cookie) => cookie.startsWith('XSRF-TOKEN='));
 
@@ -80,13 +141,14 @@ function getXsrfToken() {
 
 function getValidationMessage(responseData) {
     return Object.values(responseData.errors ?? {})[0]?.[0]
-        ?? responseData.message
-        ?? 'No fue posible completar la operación.';
+        || responseData.message
+        || 'No fue posible completar la operación.';
 }
 
 async function loadGuests() {
     isLoadingGuests.value = true;
     guestError.value = '';
+    const selectedGuestId = selectedGuest.value?.id ?? null;
 
     try {
         const response = await fetch(`/api/events/${props.event.id}/guests`, {
@@ -103,7 +165,9 @@ async function loadGuests() {
         }
 
         guests.value = responseData.guests ?? [];
-        selectedGuest.value = guests.value[0] ?? null;
+        selectedGuest.value = guests.value.find((guest) => guest.id === selectedGuestId)
+            ?? guests.value[0]
+            ?? null;
     } catch (error) {
         guestError.value = error.message || 'No fue posible cargar los invitados.';
     } finally {
@@ -112,8 +176,28 @@ async function loadGuests() {
 }
 
 async function addGuest() {
+    if (isAddingGuest.value) {
+        return;
+    }
+
     guestSuccess.value = '';
     guestError.value = '';
+
+    const selectedCategory = guestCategories.value.find((category) => category.id === guestForm.value.category_id);
+
+    if (!selectedCategory) {
+        guestError.value = 'Selecciona una categoría válida.';
+
+        return;
+    }
+
+    if (isCategoryFull(selectedCategory)) {
+        guestError.value = `La categoría «${selectedCategory.name}» ya alcanzó su cupo.`;
+
+        return;
+    }
+
+    isAddingGuest.value = true;
 
     try {
         const response = await fetch(`/api/events/${props.event.id}/guests`, {
@@ -144,11 +228,63 @@ async function addGuest() {
         guestSuccess.value = 'Invitado agregado correctamente.';
     } catch (error) {
         guestError.value = error.message || 'No fue posible agregar al invitado.';
+    } finally {
+        isAddingGuest.value = false;
     }
 }
 
 function showGuestQr(guest) {
     selectedGuest.value = guest;
+    invitationSuccess.value = '';
+    invitationError.value = '';
+}
+
+async function sendGuestInvitation() {
+    if (!selectedGuest.value?.email || isSendingInvitation.value) {
+        return;
+    }
+
+    invitationSuccess.value = '';
+    invitationError.value = '';
+    isSendingInvitation.value = true;
+
+    try {
+        await nextTick();
+        const qrPng = invitationQrRef.value?.toDataURL?.('image/png');
+
+        if (!qrPng) {
+            throw new Error('No fue posible generar el código QR.');
+        }
+
+        const response = await fetch(`/api/events/${props.event.id}/guests/${selectedGuest.value.id}/invitation`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getXsrfToken(),
+            },
+            body: JSON.stringify({ qr_png: qrPng }),
+        });
+        const responseData = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(getValidationMessage(responseData));
+        }
+
+        invitationSuccess.value = `Invitación enviada a ${responseData.email ?? selectedGuest.value.email}.`;
+    } catch (error) {
+        invitationError.value = error.message || 'No fue posible enviar la invitación.';
+    } finally {
+        isSendingInvitation.value = false;
+    }
+}
+
+function updateGuestSeat(updatedGuest) {
+    const index = guests.value.findIndex((guest) => guest.id === updatedGuest.id);
+
+    if (index !== -1) {
+        guests.value[index] = updatedGuest;
+    }
 }
 
 onMounted(loadGuests);
@@ -228,7 +364,18 @@ function addPhotos(event) {
 
                 <div class="p-5 sm:p-7">
                     <section v-if="activeTab === 'Salón'" role="tabpanel" aria-label="Salón">
-                        <TableCanvas :key="event.id" :event="event" :tables="event.tables ?? []" @close="activeTab = 'Info'" />
+                        <TableCanvas
+                            :key="event.id"
+                            :event="event"
+                            :tables="editableTables"
+                            :spaces="editableSpaces"
+                            :guests="guests"
+                            @close="activeTab = 'Info'"
+                            @tables-change="editableTables = $event"
+                            @spaces-change="editableSpaces = $event"
+                            @guest-seat-change="updateGuestSeat"
+                            @guests-refresh="loadGuests"
+                        />
                     </section>
 
                     <section v-else-if="activeTab === 'Invitados'" class="space-y-6" role="tabpanel" aria-label="Invitados">
@@ -249,35 +396,68 @@ function addPhotos(event) {
                             <label class="space-y-1.5 text-sm font-semibold text-slate-700">Categoría
                                 <select v-model="guestForm.category_id" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
                                     <option disabled value="">Selecciona una categoría</option>
-                                    <option v-for="category in guestCategories" :key="category.id" :value="category.id">{{ category.name }}</option>
+                                    <option v-for="category in guestCategories" :key="category.id" :value="category.id" :disabled="isCategoryFull(category)">{{ category.name }} · {{ guestCountsByCategory[category.id] ?? 0 }}/{{ category.guest_count }}</option>
                                 </select>
                             </label>
-                            <button type="submit" :disabled="!guestCategories.length || isLoadingGuests" class="self-end rounded-lg bg-blue-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300">Agregar</button>
+                            <button type="submit" :disabled="!guestCategories.length || isLoadingGuests || isAddingGuest" class="self-end rounded-lg bg-blue-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300">{{ isAddingGuest ? 'Agregando…' : 'Agregar' }}</button>
                         </form>
                         <div class="overflow-x-auto rounded-xl border border-slate-200">
                             <table class="w-full min-w-[600px] text-left text-sm">
-                                <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-4 py-3 font-semibold">Nombre</th><th class="px-4 py-3 font-semibold">Correo</th><th class="px-4 py-3 font-semibold">Categoría</th><th class="px-4 py-3 font-semibold">QR</th></tr></thead>
+                                <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-4 py-3 font-semibold">Nombre</th><th class="px-4 py-3 font-semibold">Correo</th><th class="px-4 py-3 font-semibold">Categoría</th><th class="px-4 py-3 font-semibold">Estatus</th><th class="px-4 py-3 font-semibold">Silla</th><th class="px-4 py-3 font-semibold">QR</th></tr></thead>
                                 <tbody class="divide-y divide-slate-100">
-                                    <tr v-for="guest in guests" :key="guest.id"><td class="px-4 py-3 font-semibold text-slate-800">{{ guest.name }}</td><td class="px-4 py-3 text-slate-500">{{ guest.email || '—' }}</td><td class="px-4 py-3 text-slate-500">{{ guest.category?.name ?? '—' }}</td><td class="px-4 py-3"><button type="button" class="font-semibold text-blue-600 hover:text-blue-700" @click="showGuestQr(guest)">Ver QR</button></td></tr>
-                                    <tr v-if="isLoadingGuests"><td colspan="4" class="px-4 py-10 text-center text-slate-500">Cargando invitados…</td></tr>
-                                    <tr v-else-if="!guests.length"><td colspan="4" class="px-4 py-10 text-center text-slate-500">Aún no hay invitados agregados.</td></tr>
+                                    <tr v-for="guest in guests" :key="guest.id"><td class="px-4 py-3 font-semibold text-slate-800">{{ guest.name }}</td><td class="px-4 py-3 text-slate-500">{{ guest.email || '—' }}</td><td class="px-4 py-3 text-slate-500">{{ guest.category?.name ?? '—' }}</td><td class="px-4 py-3 text-slate-500">{{ statusLabel(guest.invitation_status) }}</td><td class="px-4 py-3 text-slate-500">{{ guest.table ? 'Mesa ' + guest.table.table_number + ' · ' + guest.seat_number : '—' }}</td><td class="px-4 py-3"><button type="button" class="font-semibold text-blue-600 hover:text-blue-700" @click="showGuestQr(guest)">Ver QR</button></td></tr>
+                                    <tr v-if="isLoadingGuests"><td colspan="6" class="px-4 py-10 text-center text-slate-500">Cargando invitados…</td></tr>
+                                    <tr v-else-if="!guests.length"><td colspan="6" class="px-4 py-10 text-center text-slate-500">Aún no hay invitados agregados.</td></tr>
                                 </tbody>
                             </table>
                         </div>
+                        <div class="mt-6 space-y-3">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">Invitaciones por categoría</h3>
+                                <p class="mt-1 text-sm text-slate-500">Comparte el QR de una categoría con todo su grupo. Cada invitado podrá responder y aquí verás el avance.</p>
+                            </div>
+                            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                <article v-for="category in guestCategories" :key="category.id" class="flex flex-col items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-start">
+                                    <div v-if="category.public_uuid" class="shrink-0 rounded-lg border border-slate-200 bg-white p-2"><QrcodeVue :value="categoryQrValue(category)" :size="112" level="M" render-as="svg" /></div>
+                                    <div v-else class="flex h-32 w-32 shrink-0 items-center justify-center rounded-lg bg-slate-100 px-3 text-center text-[11px] text-slate-500">QR no disponible</div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="font-bold text-slate-900">{{ category.name }}</p>
+                                        <p class="mt-1 text-xs text-slate-500">{{ guestsForCategory(category.id).length }} invitados registrados · cupo {{ category.guest_count }}</p>
+                                        <p class="mt-2 text-xs font-semibold text-amber-700">{{ categoryStatusCount(category.id, 'pending') }} pendiente</p>
+                                        <p class="text-xs font-semibold text-emerald-700">{{ categoryStatusCount(category.id, 'confirmed') }} confirmo asistencia</p>
+                                        <p class="text-xs font-semibold text-rose-700">{{ categoryStatusCount(category.id, 'rejected') }} rechazo invitación</p>
+                                        <a v-if="category.public_uuid" :href="categoryQrValue(category)" target="_blank" rel="noopener" class="mt-3 inline-block text-xs font-bold text-blue-600 hover:text-blue-700">Abrir invitación grupal</a>
+                                    </div>
+                                </article>
+                                <p v-if="!guestCategories.length" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 md:col-span-2 xl:col-span-3">Agrega categorías de invitados para generar invitaciones grupales.</p>
+                            </div>
+                        </div>
                         <div v-if="selectedGuest" class="mx-auto flex max-w-2xl flex-col items-center gap-5 rounded-xl border border-slate-200 bg-slate-50 p-6 text-center sm:flex-row sm:text-left">
                             <div class="rounded-xl bg-white p-3 shadow-sm"><QrcodeVue :value="selectedGuestQrValue" :size="168" level="M" render-as="svg" /></div>
-                            <div><p class="text-xs font-bold uppercase tracking-wide text-blue-600">QR del invitado</p><h3 class="mt-1 text-lg font-bold text-slate-950">{{ selectedGuest.name }}</h3><p class="mt-2 text-sm text-slate-500">La app Flutter puede leer este token para identificar al invitado.</p><p class="mt-2 break-all font-mono text-xs text-slate-500">{{ selectedGuest.qr_token }}</p></div>
+                            <div class="flex-1">
+                                <p class="text-xs font-bold uppercase tracking-wide text-blue-600">QR del invitado</p>
+                                <h3 class="mt-1 text-lg font-bold text-slate-950">{{ selectedGuest.name }}</h3>
+                                <p class="mt-2 text-sm text-slate-500">La app Flutter puede leer este token o el invitado puede abrir su invitación pública.</p>
+                                <p class="mt-2 break-all font-mono text-xs text-slate-500">{{ selectedGuest.qr_token }}</p>
+                                <button v-if="selectedGuest.email" type="button" :disabled="isSendingInvitation" class="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300" @click="sendGuestInvitation">{{ isSendingInvitation ? 'Enviando…' : 'Enviar invitación por correo' }}</button>
+                                <p v-else class="mt-4 text-xs font-semibold text-amber-700">Este invitado no tiene un correo registrado.</p>
+                                <p v-if="invitationSuccess" class="mt-3 text-xs font-semibold text-emerald-700" role="status">{{ invitationSuccess }}</p>
+                                <p v-if="invitationError" class="mt-3 text-xs font-semibold text-rose-700" role="alert">{{ invitationError }}</p>
+                            </div>
+                        </div>
+                        <div class="hidden" aria-hidden="true">
+                            <QrcodeVue ref="invitationQrRef" :value="invitationUrl" :size="256" level="M" render-as="canvas" />
                         </div>
                     </section>
 
                     <section v-else-if="activeTab === 'QR'" class="mx-auto flex max-w-xl flex-col items-center rounded-xl border border-slate-200 bg-slate-50 px-6 py-10 text-center" role="tabpanel" aria-label="Código QR">
                         <h2 class="text-xl font-bold text-slate-950">Código QR del evento</h2>
+                        <div class="mt-6 rounded-xl bg-white p-4 shadow-sm"><QrcodeVue :value="selectedGuestQrValue || eventQrValue" :size="240" level="M" render-as="svg" /></div>
                         <template v-if="selectedGuest">
-                            <p class="mt-2 text-sm text-slate-500">Código personal de {{ selectedGuest.name }}.</p>
-                            <div class="mt-6 rounded-xl bg-white p-4 shadow-sm"><QrcodeVue :value="selectedGuestQrValue" :size="240" level="M" render-as="svg" /></div>
-                            <p class="mt-4 break-all font-mono text-xs text-slate-500">{{ selectedGuest.qr_token }}</p>
+                            <p class="mt-4 text-sm text-slate-500">Código personal de {{ selectedGuest.name }}.</p>
+                            <p class="mt-2 break-all font-mono text-xs text-slate-500">{{ selectedGuest.qr_token }}</p>
                         </template>
-                        <p v-else class="mt-6 rounded-xl bg-white px-5 py-8 text-sm text-slate-500">Agrega un invitado y selecciona “Ver QR” para mostrar su código personal.</p>
+                        <p v-else class="mt-4 break-all font-mono text-xs text-slate-500">{{ eventQrValue }}</p>
                     </section>
 
                     <section v-else-if="activeTab === 'Seguimiento'" class="space-y-5" role="tabpanel" aria-label="Seguimiento de proveedores">

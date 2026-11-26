@@ -93,6 +93,7 @@ class EventPackageController extends Controller
                 'name' => $package->name,
                 'description' => $package->description,
                 'estimated_price' => $totalPriceInCents / 100,
+                'is_paid' => true,
             ]);
             $providerPrices = [];
 

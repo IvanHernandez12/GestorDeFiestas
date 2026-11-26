@@ -126,7 +126,6 @@ class VenueSeeder extends Seeder
                 );
             }
 
-            Venue::query()->whereNotIn('name', array_column($venues, 'name'))->delete();
         });
     }
 }

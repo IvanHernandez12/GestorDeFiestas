@@ -7,7 +7,7 @@
  *
  * @creado 13/noviembre/2026
  *
- * @modificado 24/noviembre/2026
+ * @modificado 26/noviembre/2026
  *
  * @descripción Lista, crea y muestra eventos del usuario autenticado.
  */
@@ -16,6 +16,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\User;
+use App\Services\PlanLimitService;
 use App\Services\TableDistributionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,7 +49,7 @@ class EventController extends Controller
     /**
      * Crea un evento y genera su UUID público.
      */
-    public function store(Request $request, TableDistributionService $tableDistributionService): JsonResponse
+    public function store(Request $request, TableDistributionService $tableDistributionService, PlanLimitService $planLimitService): JsonResponse
     {
         $user = $request->user();
 
@@ -88,8 +89,15 @@ class EventController extends Controller
         $guestCategories = $validated['guest_categories'] ?? [];
         unset($validated['guest_categories']);
 
-        $event = DB::transaction(function () use ($user, $validated, $guestCategories, $tableDistributionService): Event {
-            $event = $user->events()->create([
+        $event = DB::transaction(function () use ($user, $validated, $guestCategories, $tableDistributionService, $planLimitService): Event {
+            $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $limitError = $planLimitService->eventCreationError($lockedUser, (int) $validated['guest_count']);
+
+            if ($limitError !== null) {
+                abort(403, $limitError);
+            }
+
+            $event = $lockedUser->events()->create([
                 ...$validated,
                 'public_uuid' => (string) Str::uuid(),
             ]);
@@ -99,6 +107,7 @@ class EventController extends Controller
                     'name' => $guestCategory['name'],
                     'guest_count' => $guestCategory['guest_count'],
                     'priority' => $guestCategory['priority'] ?? $index + 1,
+                    'public_uuid' => (string) Str::uuid(),
                 ]);
             }
 
